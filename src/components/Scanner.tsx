@@ -1,11 +1,12 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { Camera, Upload, X } from 'lucide-react';
+import { Camera, Upload, X, PenLine } from 'lucide-react';
 
 interface ScannerProps {
   onCapture: (base64: string, mimeType: string) => void;
+  onManualEntry: () => void;
 }
 
-export default function Scanner({ onCapture }: ScannerProps) {
+export default function Scanner({ onCapture, onManualEntry }: ScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string>('');
@@ -55,12 +56,32 @@ export default function Scanner({ onCapture }: ScannerProps) {
   const capturePhoto = () => {
     if (videoRef.current && stream) {
       const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
+      
+      // Ottimizzazione: ridimensiona l'immagine per velocizzare l'elaborazione OCR
+      const MAX_WIDTH = 1024;
+      const MAX_HEIGHT = 1024;
+      let width = videoRef.current.videoWidth;
+      let height = videoRef.current.videoHeight;
+
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width = Math.round((width * MAX_HEIGHT) / height);
+          height = MAX_HEIGHT;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.8); // Comprime leggermente per performance
+        ctx.drawImage(videoRef.current, 0, 0, width, height);
+        // Compressione a 0.7 per bilanciare qualità e velocità di upload
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7); 
         stopCamera();
         onCapture(dataUrl, 'image/jpeg');
       }
@@ -72,7 +93,38 @@ export default function Scanner({ onCapture }: ScannerProps) {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        onCapture(reader.result as string, file.type);
+        // Se è un'immagine molto grande, potremmo volerla ridimensionare anche qui,
+        // ma per ora passiamo il base64. L'ideale sarebbe usare un canvas anche qui.
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1024;
+          const MAX_HEIGHT = 1024;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height = Math.round((height * MAX_WIDTH) / width);
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width = Math.round((width * MAX_HEIGHT) / height);
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            onCapture(dataUrl, 'image/jpeg');
+          }
+        };
+        img.src = reader.result as string;
       };
       reader.readAsDataURL(file);
     }
@@ -118,6 +170,14 @@ export default function Scanner({ onCapture }: ScannerProps) {
               onChange={handleFileUpload}
             />
           </label>
+
+          <button
+            onClick={onManualEntry}
+            className="col-span-2 flex flex-col items-center justify-center p-4 bg-gray-50 text-gray-700 rounded-2xl hover:bg-gray-100 transition-colors border border-gray-200 shadow-sm"
+          >
+            <PenLine className="w-6 h-6 mb-2 text-gray-500" />
+            <span className="font-medium">Inserimento Manuale</span>
+          </button>
         </div>
       ) : (
         <div className="relative w-full rounded-2xl overflow-hidden bg-black aspect-[3/4] shadow-lg">

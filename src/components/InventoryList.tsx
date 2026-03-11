@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-import { Loader2, AlertCircle, RefreshCw, Database, PackageOpen, Pencil, Trash2, Check, X, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, Database, PackageOpen, Pencil, Trash2, Check, X, AlertTriangle, Download, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface InventoryItem {
   id: number;
@@ -23,6 +24,13 @@ export default function InventoryList() {
   // Stati per l'eliminazione
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Stati per la paginazione
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
+
+  // Stato per la ricerca
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchInventory = async () => {
     setLoading(true);
@@ -84,9 +92,10 @@ export default function InventoryList() {
       // Aggiorna lo stato locale
       setItems(items.map(item => item.id === id ? { ...item, ...editFormData } as InventoryItem : item));
       setEditingId(null);
+      toast.success('Articolo modificato con successo!');
     } catch (err: any) {
       console.error('Errore durante la modifica:', err);
-      setError(err.message || 'Impossibile modificare l\'articolo. Verifica i permessi su Supabase.');
+      toast.error(err.message || 'Impossibile modificare l\'articolo.');
     } finally {
       setActionLoading(false);
     }
@@ -115,17 +124,86 @@ export default function InventoryList() {
       // Rimuovi l'elemento dallo stato locale
       setItems(items.filter(item => item.id !== deleteConfirmId));
       setDeleteConfirmId(null);
+      toast.success('Articolo eliminato con successo!');
     } catch (err: any) {
       console.error('Errore durante l\'eliminazione:', err);
-      setError(err.message || 'Impossibile eliminare l\'articolo. Verifica i permessi su Supabase.');
+      toast.error(err.message || 'Impossibile eliminare l\'articolo.');
     } finally {
       setActionLoading(false);
     }
   };
 
+  const exportToCSV = () => {
+    if (items.length === 0) return;
+
+    const headers = ['Codice', 'Descrizione', 'Lotto', 'Quantità', 'Data Creazione'];
+    
+    const csvRows = items.map(item => {
+      return [
+        `"${item.codice.replace(/"/g, '""')}"`,
+        `"${item.descrizione.replace(/"/g, '""')}"`,
+        `"${item.lotto.replace(/"/g, '""')}"`,
+        item.quantita,
+        `"${new Date(item.created_at).toLocaleString()}"`
+      ].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...csvRows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `inventario_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Filtro ricerca
+  const filteredItems = useMemo(() => {
+    if (!searchTerm.trim()) return items;
+    const lowerSearch = searchTerm.toLowerCase();
+    return items.filter(item => 
+      item.codice.toLowerCase().includes(lowerSearch) ||
+      item.descrizione.toLowerCase().includes(lowerSearch) ||
+      item.lotto.toLowerCase().includes(lowerSearch)
+    );
+  }, [items, searchTerm]);
+
+  // Calcoli per la paginazione
+  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentItems = filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  // Assicurati che la pagina corrente sia valida se gli elementi vengono eliminati o filtrati
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    } else if (totalPages > 0 && currentPage === 0) {
+      setCurrentPage(1);
+    }
+  }, [filteredItems.length, currentPage, totalPages]);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative">
-      <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+      <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <Database className="w-5 h-5 text-indigo-600" />
@@ -133,14 +211,42 @@ export default function InventoryList() {
           </h2>
           <p className="text-sm text-gray-500 mt-1">Elenco di tutti gli articoli scansionati e salvati.</p>
         </div>
-        <button 
-          onClick={fetchInventory}
-          disabled={loading || actionLoading}
-          className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
-          title="Aggiorna"
-        >
-          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-grow sm:flex-grow-0">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Cerca codice, lotto..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors"
+            />
+          </div>
+          <div className="flex items-center gap-2 justify-end">
+            <button 
+              onClick={exportToCSV}
+              disabled={loading || items.length === 0}
+              className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50 flex-1 sm:flex-none"
+              title="Esporta in CSV"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Esporta</span>
+            </button>
+            <button 
+              onClick={fetchInventory}
+              disabled={loading || actionLoading}
+              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50 border border-transparent"
+              title="Aggiorna"
+            >
+              <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -174,8 +280,8 @@ export default function InventoryList() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {items.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+              {currentItems.map((item) => (
+                <tr key={item.id} className="even:bg-gray-50/30 hover:bg-indigo-50/40 transition-colors group">
                   {editingId === item.id ? (
                     // Modalità Modifica Inline
                     <>
@@ -273,6 +379,48 @@ export default function InventoryList() {
           </table>
         )}
       </div>
+
+      {/* Controlli Paginazione */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+          <div className="text-sm text-gray-500 hidden sm:block">
+            Mostrando da <span className="font-medium text-gray-900">{filteredItems.length === 0 ? 0 : startIndex + 1}</span> a <span className="font-medium text-gray-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredItems.length)}</span> di <span className="font-medium text-gray-900">{filteredItems.length}</span> articoli
+          </div>
+          <div className="flex items-center gap-1 w-full sm:w-auto justify-center sm:justify-end">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-1.5 rounded-md text-gray-500 hover:bg-gray-200 disabled:opacity-50 transition-colors"
+              title="Pagina precedente"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            
+            {getPageNumbers().map(page => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`min-w-[32px] h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors ${
+                  currentPage === page 
+                    ? 'bg-indigo-600 text-white shadow-sm' 
+                    : 'text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-1.5 rounded-md text-gray-500 hover:bg-gray-200 disabled:opacity-50 transition-colors"
+              title="Pagina successiva"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modale di Conferma Eliminazione */}
       {deleteConfirmId !== null && (

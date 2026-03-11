@@ -7,6 +7,7 @@ import { extractDataFromImage, ExtractedData } from './services/ocrService';
 import { supabase } from './supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { PackageSearch, Loader2, List, Camera, LogOut } from 'lucide-react';
+import { Toaster } from 'react-hot-toast';
 
 type AppState = 'scanning' | 'processing' | 'editing';
 type Tab = 'scanner' | 'inventory';
@@ -63,6 +64,16 @@ export default function App() {
     setError('');
   };
 
+  const handleManualEntry = () => {
+    setExtractedData({
+      codice: '',
+      descrizione: '',
+      lotto: ''
+    });
+    setAppState('editing');
+    setError('');
+  };
+
   if (isInitializing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -77,6 +88,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+      <Toaster position="top-center" />
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -140,7 +152,7 @@ export default function App() {
                   </div>
                 )}
                 
-                <Scanner onCapture={handleCapture} />
+                <Scanner onCapture={handleCapture} onManualEntry={handleManualEntry} />
               </div>
             )}
 

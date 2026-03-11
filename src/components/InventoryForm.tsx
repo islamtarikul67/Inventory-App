@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../supabaseClient';
 import { ExtractedData } from '../services/ocrService';
 import { CheckCircle2, AlertCircle, Loader2, Save, RotateCcw } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface InventoryFormProps {
   initialData: ExtractedData;
@@ -9,19 +10,26 @@ interface InventoryFormProps {
 }
 
 export default function InventoryForm({ initialData, onReset }: InventoryFormProps) {
-  const [formData, setFormData] = useState<ExtractedData>({
+  const [formData, setFormData] = useState<ExtractedData & { quantitaInput: number | string }>({
     ...initialData,
-    quantita: initialData.quantita || 1
+    quantitaInput: initialData.quantita !== undefined ? initialData.quantita : ''
   });
   const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
-    setFormData(prev => ({ 
-      ...prev, 
-      [name]: type === 'number' ? Number(value) : value 
-    }));
+    if (name === 'quantita') {
+      setFormData(prev => ({ 
+        ...prev, 
+        quantitaInput: value === '' ? '' : Number(value) 
+      }));
+    } else {
+      setFormData(prev => ({ 
+        ...prev, 
+        [name]: value 
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,17 +53,19 @@ export default function InventoryForm({ initialData, onReset }: InventoryFormPro
             codice: formData.codice,
             descrizione: formData.descrizione,
             lotto: formData.lotto,
-            quantita: formData.quantita,
+            quantita: typeof formData.quantitaInput === 'number' ? formData.quantitaInput : 1,
           }
         ]);
 
       if (error) throw error;
       
       setStatus('success');
+      toast.success('Articolo salvato nell\'inventario!');
     } catch (err: any) {
       console.error('Errore salvataggio:', err);
       setStatus('error');
       setErrorMessage(err.message || 'Errore durante il salvataggio nel database.');
+      toast.error('Errore durante il salvataggio.');
     }
   };
 
@@ -66,13 +76,13 @@ export default function InventoryForm({ initialData, onReset }: InventoryFormPro
           <CheckCircle2 className="w-8 h-8" />
         </div>
         <h3 className="text-xl font-semibold text-gray-900 mb-2">Salvato con successo!</h3>
-        <p className="text-gray-500 mb-8">I dati dell'etichetta sono stati inseriti correttamente nell'inventario.</p>
+        <p className="text-gray-500 mb-8">I dati dell'articolo sono stati inseriti correttamente nell'inventario.</p>
         <button
           onClick={onReset}
           className="flex items-center justify-center w-full py-3.5 px-4 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors shadow-md"
         >
           <RotateCcw className="w-5 h-5 mr-2" />
-          Scansiona un'altra etichetta
+          Inserisci un altro articolo
         </button>
       </div>
     );
@@ -94,8 +104,8 @@ export default function InventoryForm({ initialData, onReset }: InventoryFormPro
       )}
 
       <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-        <h2 className="text-lg font-semibold text-gray-900">Verifica Dati Estratti</h2>
-        <p className="text-sm text-gray-500 mt-1">Controlla e correggi i dati prima di salvare nel database.</p>
+        <h2 className="text-lg font-semibold text-gray-900">Dati Articolo</h2>
+        <p className="text-sm text-gray-500 mt-1">Inserisci o verifica i dati dell'articolo prima di salvare.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -142,7 +152,7 @@ export default function InventoryForm({ initialData, onReset }: InventoryFormPro
             value={formData.lotto}
             onChange={handleChange}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow bg-gray-50 focus:bg-white"
-            placeholder="Es. L-2023-10-A"
+            placeholder="Es. 250010"
             required
           />
         </div>
@@ -155,11 +165,11 @@ export default function InventoryForm({ initialData, onReset }: InventoryFormPro
             type="number"
             id="quantita"
             name="quantita"
-            value={formData.quantita}
+            value={formData.quantitaInput}
             onChange={handleChange}
             min="1"
             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow bg-gray-50 focus:bg-white"
-            placeholder="Es. 1"
+            placeholder="Es. 10"
             required
           />
         </div>
