@@ -1,0 +1,7 @@
+{
+  "name": "Inventory OCR App",
+  "description": "Gestione inventario tramite scansione OCR di etichette con Supabase",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
