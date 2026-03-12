@@ -139,28 +139,214 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
     }
   };
 
-  const exportToCSV = () => {
+  const exportToHTML = () => {
     if (items.length === 0) return;
 
-    const headers = ['Codice', 'Descrizione', 'Lotto', 'Quantità', 'Data Creazione'];
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Esportazione Inventario</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <style>
+    body { 
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+      margin: 0; 
+      padding: 0;
+      color: #000;
+      background: #fff;
+    }
+    @page { 
+      size: A4 portrait; 
+      margin: 10mm; 
+    }
+    .print-container {
+      padding: 20px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #000;
+      font-size: 22px;
+      text-transform: uppercase;
+    }
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin-bottom: 20px;
+      table-layout: fixed;
+    }
+    th, td { 
+      border: 1px solid #000; 
+      padding: 8px 6px; 
+      vertical-align: middle;
+      line-height: 1.2;
+    }
+    th { 
+      background-color: #f0f0f0; 
+      font-weight: bold; 
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      text-align: center;
+    }
     
-    const csvRows = items.map(item => {
-      return [
-        `"${item.codice.replace(/"/g, '""')}"`,
-        `"${item.descrizione.replace(/"/g, '""')}"`,
-        `"${item.lotto.replace(/"/g, '""')}"`,
-        item.quantita,
-        `"${new Date(item.created_at).toLocaleString()}"`
-      ].join(',');
+    /* Column Widths */
+    th:nth-child(1) { width: 35%; } /* CODICE */
+    th:nth-child(2) { width: 20%; } /* LOTTO BARCODE */
+    th:nth-child(3) { width: 35%; } /* DESCRIZIONE */
+    th:nth-child(4) { width: 10%; } /* QUANTITÀ */
+    
+    .barcode-cell {
+      text-align: center;
+      padding: 6px 2px;
+    }
+    .barcode-svg {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+    .desc-cell {
+      vertical-align: middle;
+      word-wrap: break-word;
+      font-size: 9px;
+    }
+    .qty-cell {
+      text-align: right;
+      font-weight: bold;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+    
+    .no-print {
+      text-align: center; 
+      margin-top: 20px;
+      padding: 20px;
+    }
+    .print-btn {
+      padding: 10px 20px; 
+      font-size: 16px; 
+      cursor: pointer; 
+      background: #4f46e5; 
+      color: white; 
+      border: none; 
+      border-radius: 6px;
+    }
+    
+    @media print {
+      body { padding: 0; }
+      .print-container { padding: 0; }
+      .no-print { display: none !important; }
+      table { page-break-inside: auto; }
+      tr { page-break-inside: avoid; page-break-after: auto; }
+      thead { display: table-header-group; }
+      tfoot { display: table-footer-group; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-container">
+    <h2>Distinta Inventario</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Codice</th>
+          <th>Lotto Barcode</th>
+          <th>Descrizione</th>
+          <th>Quantità</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map((item, index) => `
+          <tr>
+            <td class="barcode-cell">
+              <svg class="barcode-svg codice-barcode" data-value="${item.codice}"></svg>
+            </td>
+            <td class="barcode-cell">
+              <svg class="barcode-svg lotto-barcode" data-value="${item.lotto}"></svg>
+            </td>
+            <td class="desc-cell">${item.descrizione}</td>
+            <td class="qty-cell">${item.quantita}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+  <div class="no-print">
+    <button onclick="window.print()" class="print-btn">Stampa Documento</button>
+  </div>
+  <script>
+    // Generate Codice Barcodes
+    document.querySelectorAll('.codice-barcode').forEach(svg => {
+      const value = svg.getAttribute('data-value');
+      if (value) {
+        try {
+          JsBarcode(svg, value, {
+            format: "CODE39",
+            width: 1.2,
+            height: 35,
+            displayValue: true,
+            fontSize: 10,
+            margin: 0,
+            textMargin: 2
+          });
+        } catch (e) {
+          console.warn("CODE39 failed for", value, "trying CODE128");
+          try {
+            JsBarcode(svg, value, {
+              format: "CODE128",
+              width: 1.2,
+              height: 35,
+              displayValue: true,
+              fontSize: 10,
+              margin: 0,
+              textMargin: 2
+            });
+          } catch (e2) {
+            svg.outerHTML = "<span style='font-size: 10px;'>" + value + "</span>";
+          }
+        }
+      }
     });
 
-    const csvContent = [headers.join(','), ...csvRows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Generate Lotto Barcodes
+    document.querySelectorAll('.lotto-barcode').forEach(svg => {
+      const value = svg.getAttribute('data-value');
+      if (value) {
+        try {
+          JsBarcode(svg, value, {
+            format: "CODE128",
+            width: 1.2,
+            height: 30,
+            displayValue: true,
+            fontSize: 10,
+            margin: 0,
+            textMargin: 2
+          });
+        } catch (e) {
+          console.error("Error generating lotto barcode for", value, e);
+          svg.outerHTML = "<span style='font-size: 10px;'>" + value + "</span>";
+        }
+      }
+    });
+
+    // Auto-print after a short delay to ensure SVGs are rendered
+    setTimeout(() => {
+      window.print();
+    }, 800);
+  </script>
+</body>
+</html>
+    `;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `inventario_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `inventario_stampa_${new Date().toISOString().split('T')[0]}.html`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -238,12 +424,12 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
           
           <div className="flex items-center gap-2 sm:gap-3">
             <button 
-              onClick={exportToCSV}
+              onClick={exportToHTML}
               disabled={loading || items.length === 0}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 text-[10px] font-black uppercase tracking-widest text-slate-700 bg-white border-2 border-slate-100 rounded-xl sm:rounded-2xl hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
             >
               <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="sm:inline">Esporta</span>
+              <span className="sm:inline">Esporta / Stampa</span>
             </button>
             <button 
               onClick={fetchInventory}

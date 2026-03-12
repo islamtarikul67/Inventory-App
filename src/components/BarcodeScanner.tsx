@@ -13,13 +13,42 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
   const [error, setError] = useState<string>('');
   const [isStarting, setIsStarting] = useState(true);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isVideoBlack, setIsVideoBlack] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isVideoPlaying) {
+      const checkVideo = () => {
+        const video = document.querySelector(`#${regionId} video`) as HTMLVideoElement;
+        if (video && video.videoWidth === 0) {
+          console.warn("BarcodeScanner: Video is playing but videoWidth is 0. It might be a black screen.");
+          setIsVideoBlack(true);
+        } else {
+          setIsVideoBlack(false);
+        }
+      };
+      
+      const timeout = setTimeout(() => {
+        checkVideo();
+        interval = setInterval(checkVideo, 2000);
+      }, 2000);
+      
+      return () => {
+        clearTimeout(timeout);
+        clearInterval(interval);
+      };
+    } else {
+      setIsVideoBlack(false);
+    }
+  }, [isVideoPlaying]);
+
   const [target, setTarget] = useState<'codice' | 'lotto'>('codice');
   const [codice, setCodice] = useState('');
   const [lotto, setLotto] = useState('');
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const isBusyRef = useRef(false);
   const regionId = "html5qr-code-full-region";
   
   const stateRef = useRef({ target, codice, lotto });
@@ -33,12 +62,34 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
 
   const startScanner = async (cameraIndex?: number) => {
+    if (isBusyRef.current) {
+      console.warn("Scanner is already transitioning, skipping start request.");
+      return;
+    }
+    
+    isBusyRef.current = true;
     setIsStarting(true);
     setError('');
     setIsVideoPlaying(false);
+    
     try {
-      if (scannerRef.current && scannerRef.current.isScanning) {
-        await scannerRef.current.stop();
+      // Clean up existing scanner instance if it exists
+      if (scannerRef.current) {
+        try {
+          if (scannerRef.current.isScanning) {
+            await scannerRef.current.stop();
+          }
+        } catch (stopErr) {
+          console.warn("Non-critical error stopping scanner:", stopErr);
+        }
+        // Clear the reference to ensure a fresh start
+        scannerRef.current = null;
+      }
+      
+      // Ensure the container exists
+      const container = document.getElementById(regionId);
+      if (!container) {
+        throw new Error("Scanner container not found");
       }
       
       scannerRef.current = new Html5Qrcode(regionId);
@@ -132,12 +183,22 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
 
     } catch (err: any) {
       console.error("Error starting barcode scanner:", err);
-      if (err.name === 'NotAllowedError' || err.name === 'SecurityError' || err.message.includes('not allowed')) {
+      const errorMessage = err?.message || String(err) || "";
+      const lowerError = errorMessage.toLowerCase();
+      
+      if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError' || lowerError.includes('not allowed') || lowerError.includes('permission denied')) {
         setError("Accesso alla fotocamera negato. Prova ad aprire l'app in una NUOVA SCHEDA per concedere i permessi.");
+      } else if (err?.name === 'NotFoundError' || lowerError.includes('requested device not found') || lowerError.includes('notfounderror')) {
+        setError("Nessuna fotocamera trovata. Assicurati che il dispositivo abbia una fotocamera funzionante.");
+      } else if (lowerError.includes('already under transition')) {
+        // This is often transient, we don't want to block the UI with a hard error
+        console.warn("Scanner was in transition, likely handled by isBusyRef");
       } else {
         setError("Impossibile avviare lo scanner. Assicurati di aver concesso i permessi per la fotocamera.");
       }
       setIsStarting(false);
+    } finally {
+      isBusyRef.current = false;
     }
   };
 
@@ -310,6 +371,36 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
                   className="px-6 py-3 bg-white/5 text-white/60 rounded-2xl font-black uppercase tracking-widest text-[9px] border border-white/10"
                 >
                   Riprova inizializzazione
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {isVideoBlack && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-black/80 text-white backdrop-blur-md p-6 text-center"
+          >
+            <div className="bg-white/10 p-6 rounded-[2rem] border border-white/20 backdrop-blur-xl">
+              <p className="text-sm font-bold mb-2">Schermo Nero Rilevato</p>
+              <p className="text-[10px] text-white/60 mb-6 leading-relaxed">
+                Il browser sta bloccando il flusso video (problema comune su iOS/Safari negli iframe).<br/>
+                Per risolvere, apri l'app in una <strong>NUOVA SCHEDA</strong>.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => window.open(window.location.href, '_blank')}
+                  className="px-6 py-3 bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-transform"
+                >
+                  Apri in Nuova Scheda
+                </button>
+                <button 
+                  onClick={handleRetry}
+                  className="px-6 py-3 bg-white/10 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-transform border border-white/20"
+                >
+                  Riprova
                 </button>
               </div>
             </div>

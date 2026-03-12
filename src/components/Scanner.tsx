@@ -12,8 +12,14 @@ interface ScannerProps {
 export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: ScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState<string>('');
   const [isBarcodeMode, setIsBarcodeMode] = useState(false);
+
+  // Keep streamRef in sync with stream state
+  useEffect(() => {
+    streamRef.current = stream;
+  }, [stream]);
 
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
@@ -34,11 +40,42 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
   const [isStarting, setIsStarting] = useState(false);
 
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isVideoBlack, setIsVideoBlack] = useState(false);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isVideoPlaying && videoRef.current) {
+      // Check if video is actually rendering frames after a short delay
+      const checkVideo = () => {
+        if (videoRef.current && videoRef.current.videoWidth === 0) {
+          console.warn("Video is playing but videoWidth is 0. It might be a black screen.");
+          setIsVideoBlack(true);
+        } else {
+          setIsVideoBlack(false);
+        }
+      };
+      
+      // Initial check after 2 seconds
+      const timeout = setTimeout(() => {
+        checkVideo();
+        // Then check periodically
+        interval = setInterval(checkVideo, 2000);
+      }, 2000);
+      
+      return () => {
+        clearTimeout(timeout);
+        clearInterval(interval);
+      };
+    } else {
+      setIsVideoBlack(false);
+    }
+  }, [isVideoPlaying]);
 
   const startCamera = async (deviceId?: string) => {
     setIsStarting(true);
     setError('');
     setIsVideoPlaying(false);
+    setIsVideoBlack(false);
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("L'API della fotocamera non è supportata dal tuo browser.");
@@ -85,15 +122,17 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
       setCurrentDeviceId(targetDeviceId || null);
     } catch (err: any) {
       console.error('Errore fotocamera:', err);
+      const errorMessage = err?.message || String(err) || "";
+      const lowerError = errorMessage.toLowerCase();
       
-      if (err.name === 'NotFoundError' || err.message.includes('Requested device not found')) {
-        setError('Nessuna fotocamera trovata. Se sei su PC, assicurati che la webcam sia collegata.');
-      } else if (err.name === 'NotAllowedError' || err.name === 'SecurityError' || err.message.includes('not allowed')) {
+      if (err?.name === 'NotFoundError' || lowerError.includes('requested device not found') || lowerError.includes('notfounderror')) {
+        setError('Nessuna fotocamera trovata. Assicurati che il dispositivo abbia una fotocamera funzionante.');
+      } else if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError' || lowerError.includes('not allowed') || lowerError.includes('permission denied')) {
         setError('Accesso negato. Se stai usando l\'anteprima, prova ad aprire l\'app in una NUOVA SCHEDA (pulsante in alto a destra) per concedere i permessi correttamente.');
-      } else if (err.name === 'NotReadableError' || err.message.includes('could not start')) {
+      } else if (err?.name === 'NotReadableError' || lowerError.includes('could not start') || lowerError.includes('track start error')) {
         setError('La fotocamera è già in uso da un\'altra applicazione o il sistema ha bloccato l\'accesso.');
       } else {
-        setError(`Errore fotocamera: ${err.message || 'Controlla i permessi del browser.'}`);
+        setError(`Errore fotocamera: ${errorMessage || 'Controlla i permessi del browser.'}`);
       }
     } finally {
       setIsStarting(false);
@@ -116,12 +155,19 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
   };
 
   const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-      setIsVideoPlaying(false);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        try {
+          track.stop();
+        } catch (e) {
+          console.error("Error stopping track", e);
+        }
+      });
+      streamRef.current = null;
     }
-  }, [stream]);
+    setStream(null);
+    setIsVideoPlaying(false);
+  }, []);
 
   const capturePhoto = () => {
     if (videoRef.current && stream) {
@@ -214,39 +260,6 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
       }
     }
   };
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (video && stream) {
-      video.srcObject = stream;
-      video.muted = true;
-      video.playsInline = true;
-      
-      const handlePlay = async () => {
-        try {
-          await video.play();
-          setIsVideoPlaying(true);
-        } catch (err) {
-          console.error('Errore riproduzione video:', err);
-          // Retry after a short delay
-          setTimeout(() => {
-            if (video && stream && stream.active) {
-              video.play()
-                .then(() => setIsVideoPlaying(true))
-                .catch(e => console.error('Retry play failed:', e));
-            }
-          }, 1000);
-        }
-      };
-
-      video.onloadedmetadata = handlePlay;
-      handlePlay();
-      
-      return () => {
-        video.onloadedmetadata = null;
-      };
-    }
-  }, [stream]);
 
   useEffect(() => {
     return () => stopCamera();
@@ -397,8 +410,51 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
               </div>
             )}
 
+            {isVideoBlack && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-black/80 text-white backdrop-blur-md p-6 text-center">
+                <div className="bg-white/10 p-6 rounded-[2rem] border border-white/20 backdrop-blur-xl">
+                  <p className="text-sm font-bold mb-2">Schermo Nero Rilevato</p>
+                  <p className="text-[10px] text-white/60 mb-6 leading-relaxed">
+                    Il browser sta bloccando il flusso video (problema comune su iOS/Safari negli iframe).<br/>
+                    Per risolvere, apri l'app in una <strong>NUOVA SCHEDA</strong>.
+                  </p>
+                  <div className="flex flex-col gap-3">
+                    <button 
+                      onClick={() => window.open(window.location.href, '_blank')}
+                      className="px-6 py-3 bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-transform"
+                    >
+                      Apri in Nuova Scheda
+                    </button>
+                    <button 
+                      onClick={retryCamera}
+                      className="px-6 py-3 bg-white/10 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-transform border border-white/20"
+                    >
+                      Riprova
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <video 
-              ref={videoRef} 
+              ref={(el) => {
+                videoRef.current = el;
+                if (el && stream && el.srcObject !== stream) {
+                  el.srcObject = stream;
+                  // Force attributes for iOS Safari
+                  el.setAttribute('playsinline', 'true');
+                  el.setAttribute('webkit-playsinline', 'true');
+                  el.setAttribute('muted', 'true');
+                  el.muted = true;
+                  
+                  el.play().then(() => {
+                    setIsVideoPlaying(true);
+                  }).catch(err => {
+                    console.error('Auto-play failed in ref callback:', err);
+                    // We don't set isVideoPlaying to true here so the overlay can show
+                  });
+                }
+              }}
               autoPlay 
               playsInline 
               muted
