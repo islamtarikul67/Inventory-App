@@ -276,11 +276,19 @@ export default function SessionSelector({ currentSessionId, onSessionChange, dro
                               </div>
                             )}
                             <div className="w-px h-4 bg-slate-100 mx-1" />
+                            <motion.div
+                              whileHover={{ scale: 1.1, backgroundColor: '#fee2e2', color: '#ef4444' }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={(e) => { e.stopPropagation(); setDeletingId(session.id); }}
+                              className="p-2 text-slate-300 hover:text-rose-500 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </motion.div>
                           </div>
                         </button>
                         
                         <AnimatePresence>
-                          {deletingId === session.id ? (
+                          {deletingId === session.id && (
                             <motion.div 
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
@@ -307,15 +315,6 @@ export default function SessionSelector({ currentSessionId, onSessionChange, dro
                                 </motion.button>
                               </div>
                             </motion.div>
-                          ) : (
-                            <motion.button
-                              whileHover={{ scale: 1.1, backgroundColor: '#fee2e2', color: '#ef4444' }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={(e) => { e.stopPropagation(); setDeletingId(session.id); }}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-rose-500 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </motion.button>
                           )}
                         </AnimatePresence>
                       </motion.div>

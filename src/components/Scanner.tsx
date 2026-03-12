@@ -351,16 +351,6 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
               </div>
               <span className="font-black text-slate-700 text-[9px] sm:text-xs uppercase tracking-[0.15em] sm:tracking-[0.2em]">Manuale</span>
             </motion.button>
-
-            <motion.button
-              whileHover={{ y: -5 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => window.open(window.location.href, '_blank')}
-              className="group col-span-2 flex items-center justify-center p-4 bg-indigo-50 border border-indigo-100 rounded-2xl hover:bg-indigo-100 transition-all duration-300 shadow-sm"
-            >
-              <RefreshCw className="w-4 h-4 text-indigo-600 mr-2" />
-              <span className="font-bold text-indigo-700 text-[10px] uppercase tracking-wider">Problemi con la fotocamera? Apri in nuova scheda</span>
-            </motion.button>
           </motion.div>
         ) : (
           <motion.div 

@@ -31,28 +31,48 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
+  const [totalCount, setTotalCount] = useState(0);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const fetchInventory = async () => {
     setLoading(true);
     setError('');
     try {
+      const from = (currentPage - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
       let query = supabase
         .from('inventario')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
       
       if (sessionId) {
         query = query.eq('sessione_id', sessionId);
       } else {
         query = query.is('sessione_id', null);
       }
+
+      if (debouncedSearchTerm.trim()) {
+        const search = `%${debouncedSearchTerm.trim()}%`;
+        query = query.or(`codice.ilike.${search},descrizione.ilike.${search},lotto.ilike.${search}`);
+      }
       
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       
       if (error) throw error;
       setItems(data || []);
+      setTotalCount(count || 0);
     } catch (err: any) {
       console.error('Errore nel recupero dati:', err);
       setError(err.message || 'Impossibile caricare l\'inventario.');
@@ -63,7 +83,7 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
 
   useEffect(() => {
     fetchInventory();
-  }, [sessionId]);
+  }, [sessionId, currentPage, debouncedSearchTerm]);
 
   const handleEditClick = (item: InventoryItem) => {
     setEditingId(item.id);
@@ -92,7 +112,8 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
           codice: editFormData.codice,
           descrizione: editFormData.descrizione,
           lotto: editFormData.lotto,
-          quantita: editFormData.quantita
+          quantita: editFormData.quantita,
+          note: editFormData.note
         })
         .eq('id', id);
 
@@ -139,10 +160,29 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
     }
   };
 
-  const exportToHTML = () => {
-    if (items.length === 0) return;
+  const exportToHTML = async () => {
+    setActionLoading(true);
+    try {
+      let query = supabase
+        .from('inventario')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (sessionId) {
+        query = query.eq('sessione_id', sessionId);
+      } else {
+        query = query.is('sessione_id', null);
+      }
 
-    const htmlContent = `
+      const { data: exportItems, error } = await query;
+      if (error) throw error;
+
+      if (!exportItems || exportItems.length === 0) {
+        toast.error('Nessun dato da esportare');
+        return;
+      }
+
+      const htmlContent = `
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -194,24 +234,31 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
     
     /* Column Widths */
     th:nth-child(1) { width: 35%; } /* CODICE */
-    th:nth-child(2) { width: 20%; } /* LOTTO BARCODE */
-    th:nth-child(3) { width: 35%; } /* DESCRIZIONE */
-    th:nth-child(4) { width: 10%; } /* QUANTITÀ */
+    th:nth-child(2) { width: 32%; } /* DESCRIZIONE */
+    th:nth-child(3) { width: 17%; } /* LOTTO BARCODE */
+    th:nth-child(4) { width: 6%; } /* NOTE */
+    th:nth-child(5) { width: 10%; } /* QUANTITÀ */
     
     .barcode-cell {
       text-align: center;
       padding: 6px 2px;
     }
     .barcode-svg {
-      max-width: 100%;
       height: auto;
       display: block;
       margin: 0 auto;
+      max-width: 100%;
     }
     .desc-cell {
       vertical-align: middle;
       word-wrap: break-word;
       font-size: 9px;
+    }
+    .note-cell {
+      vertical-align: middle;
+      word-wrap: break-word;
+      font-size: 8px;
+      text-align: center;
     }
     .qty-cell {
       text-align: right;
@@ -253,21 +300,23 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
       <thead>
         <tr>
           <th>Codice</th>
-          <th>Lotto Barcode</th>
           <th>Descrizione</th>
+          <th>Lotto Barcode</th>
+          <th>Note</th>
           <th>Quantità</th>
         </tr>
       </thead>
       <tbody>
-        ${items.map((item, index) => `
+        ${exportItems.map((item, index) => `
           <tr>
             <td class="barcode-cell">
               <svg class="barcode-svg codice-barcode" data-value="${item.codice}"></svg>
             </td>
+            <td class="desc-cell">${item.descrizione}</td>
             <td class="barcode-cell">
               <svg class="barcode-svg lotto-barcode" data-value="${item.lotto}"></svg>
             </td>
-            <td class="desc-cell">${item.descrizione}</td>
+            <td class="note-cell">${item.note || ''}</td>
             <td class="qty-cell">${item.quantita}</td>
           </tr>
         `).join('')}
@@ -284,29 +333,17 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
       if (value) {
         try {
           JsBarcode(svg, value, {
-            format: "CODE39",
-            width: 1.2,
-            height: 35,
+            format: "CODE128",
+            width: 1.1,
+            height: 40,
             displayValue: true,
             fontSize: 10,
             margin: 0,
             textMargin: 2
           });
         } catch (e) {
-          console.warn("CODE39 failed for", value, "trying CODE128");
-          try {
-            JsBarcode(svg, value, {
-              format: "CODE128",
-              width: 1.2,
-              height: 35,
-              displayValue: true,
-              fontSize: 10,
-              margin: 0,
-              textMargin: 2
-            });
-          } catch (e2) {
-            svg.outerHTML = "<span style='font-size: 10px;'>" + value + "</span>";
-          }
+          console.error("Error generating codice barcode for", value, e);
+          svg.outerHTML = "<span style='font-size: 10px;'>" + value + "</span>";
         }
       }
     });
@@ -318,8 +355,8 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
         try {
           JsBarcode(svg, value, {
             format: "CODE128",
-            width: 1.2,
-            height: 30,
+            width: 1.1,
+            height: 40,
             displayValue: true,
             fontSize: 10,
             margin: 0,
@@ -350,21 +387,16 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    } catch (err: any) {
+      console.error('Errore esportazione:', err);
+      toast.error('Errore durante l\'esportazione');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const filteredItems = useMemo(() => {
-    if (!searchTerm.trim()) return items;
-    const lowerSearch = searchTerm.toLowerCase();
-    return items.filter(item => 
-      item.codice.toLowerCase().includes(lowerSearch) ||
-      item.descrizione.toLowerCase().includes(lowerSearch) ||
-      item.lotto.toLowerCase().includes(lowerSearch)
-    );
-  }, [items, searchTerm]);
-
-  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentItems = filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+  const currentItems = items;
 
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
@@ -372,7 +404,7 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
     } else if (totalPages > 0 && currentPage === 0) {
       setCurrentPage(1);
     }
-  }, [filteredItems.length, currentPage, totalPages]);
+  }, [totalCount, currentPage, totalPages]);
 
   const getPageNumbers = () => {
     const pages = [];
@@ -493,11 +525,12 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                 <table className="w-full text-left border-separate border-spacing-y-3">
                   <thead>
                     <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                      <th className="px-6 py-4">Codice</th>
-                      <th className="px-6 py-4">Descrizione</th>
-                      <th className="px-6 py-4">Lotto</th>
-                      <th className="px-6 py-4 text-right">Quantità</th>
-                      <th className="px-6 py-4 text-right">Azioni</th>
+                      <th className="px-6 py-4 w-[25%]">Codice</th>
+                      <th className="px-6 py-4 w-[30%]">Descrizione</th>
+                      <th className="px-6 py-4 w-[15%]">Lotto</th>
+                      <th className="px-6 py-4 w-[10%]">Note</th>
+                      <th className="px-6 py-4 text-right w-[10%]">Quantità</th>
+                      <th className="px-6 py-4 text-right w-[10%]">Azioni</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -542,6 +575,16 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                               </td>
                               <td className="px-4 py-3">
                                 <input 
+                                  type="text" 
+                                  name="note" 
+                                  value={editFormData.note || ''} 
+                                  onChange={handleEditChange} 
+                                  className="w-full px-4 py-2 text-sm font-bold border-2 border-indigo-200 rounded-xl focus:ring-0 outline-none bg-white shadow-sm"
+                                  placeholder="Note..."
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <input 
                                   type="number" 
                                   name="quantita" 
                                   value={editFormData.quantita || 0} 
@@ -580,6 +623,9 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                                 <span className="inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 border border-slate-200/50">
                                   {item.lotto}
                                 </span>
+                              </td>
+                              <td className="px-6 py-5">
+                                <span className="text-sm font-medium text-slate-500">{item.note || '-'}</span>
                               </td>
                               <td className="px-6 py-5 text-right">
                                 <span className="text-lg font-black text-indigo-600 tracking-tight">{item.quantita}</span>
@@ -664,6 +710,16 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                               />
                             </div>
                           </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Note</label>
+                            <input 
+                              type="text" 
+                              name="note" 
+                              value={editFormData.note || ''} 
+                              onChange={handleEditChange} 
+                              className="w-full px-4 py-3 text-sm font-bold border-2 border-indigo-200 rounded-xl focus:ring-0 outline-none bg-white"
+                            />
+                          </div>
                           <div className="flex justify-end gap-2 pt-4 border-t border-indigo-100/50 mt-4">
                             <button 
                               onClick={handleCancelEdit} 
@@ -693,9 +749,16 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                             </div>
                           </div>
                           <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                            <span className="inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 border border-slate-200/50">
-                              Lotto: {item.lotto}
-                            </span>
+                            <div className="flex flex-col gap-2">
+                              <span className="inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 border border-slate-200/50 w-fit">
+                                Lotto: {item.lotto}
+                              </span>
+                              {item.note && (
+                                <span className="text-xs font-medium text-slate-500">
+                                  Note: {item.note}
+                                </span>
+                              )}
+                            </div>
                             <div className="flex gap-2">
                               <button 
                                 onClick={() => handleEditClick(item)} 

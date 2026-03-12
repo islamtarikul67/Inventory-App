@@ -64,27 +64,43 @@ export default function App() {
     if (queue.length === 0) return;
 
     setIsSyncing(true);
-    let successCount = 0;
-
-    for (const item of queue) {
-      try {
+    
+    try {
+      const itemsToInsert = queue.map(item => {
         const { id, timestamp, ...dataToInsert } = item;
+        // Se l'item non ha una sessione associata (vecchi salvataggi), usa quella corrente
         if (!dataToInsert.sessione_id && currentSession) {
           dataToInsert.sessione_id = currentSession.id;
         }
-        const { error } = await supabase.from('inventario').insert([dataToInsert]);
-        if (!error) {
-          syncService.removeFromQueue(id);
-          successCount++;
-        }
-      } catch (err) {
-        console.error('Error syncing item:', err);
-      }
-    }
+        return dataToInsert;
+      });
 
-    setIsSyncing(false);
-    if (successCount > 0) {
-      toast.success(`Sincronizzati ${successCount} elementi salvati offline!`, { icon: '🔄' });
+      // Esegui un inserimento batch per massime prestazioni
+      const { error } = await supabase.from('inventario').insert(itemsToInsert);
+      
+      if (!error) {
+        syncService.clearQueue();
+        toast.success(`Sincronizzati ${queue.length} elementi salvati offline!`, { icon: '🔄' });
+      } else {
+        console.error('Errore durante la sincronizzazione batch:', error);
+        // Se il batch fallisce, proviamo uno alla volta come fallback per salvare il salvabile
+        let successCount = 0;
+        for (const item of queue) {
+          const { id, timestamp, ...dataToInsert } = item;
+          const { error: singleError } = await supabase.from('inventario').insert([dataToInsert]);
+          if (!singleError) {
+            syncService.removeFromQueue(id);
+            successCount++;
+          }
+        }
+        if (successCount > 0) {
+          toast.success(`Sincronizzati ${successCount} elementi!`, { icon: '🔄' });
+        }
+      }
+    } catch (err) {
+      console.error('Errore imprevisto durante la sincronizzazione:', err);
+    } finally {
+      setIsSyncing(false);
     }
   };
 

@@ -12,6 +12,7 @@ export interface InventoryItem {
   descrizione: string;
   lotto: string;
   quantita: number;
+  note?: string;
   sessione_id: string;
   creato_at: string;
   creato_da: string;

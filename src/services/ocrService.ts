@@ -8,6 +8,7 @@ export interface ExtractedData {
   descrizione: string;
   lotto: string;
   quantita?: number;
+  note?: string;
   confidence?: {
     codice: number;
     descrizione: number;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../supabaseClient';
 import { ExtractedData } from '../services/ocrService';
-import { CheckCircle2, AlertCircle, Loader2, Save, RotateCcw, WifiOff, CloudOff, Database, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2, Save, RotateCcw, WifiOff, CloudOff, Database, ArrowLeft, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { syncService } from '../services/syncService';
 import { motion, AnimatePresence } from 'motion/react';
@@ -90,24 +90,46 @@ export default function InventoryForm({ initialData, onReset, sessionId }: Inven
         descrizione: sanitizeInput(formData.descrizione),
         lotto: sanitizeInput(formData.lotto),
         quantita: typeof formData.quantitaInput === 'number' ? formData.quantitaInput : 1,
+        note: formData.note ? sanitizeInput(formData.note) : null,
         sessione_id: sessionId
       };
 
+      // Aggiungiamo sempre alla coda locale prima per sicurezza e velocità percepita
+      const pendingItem = syncService.addToQueue(sanitizedData);
+
       if (!isOnline) {
-        syncService.addToQueue(sanitizedData);
         setStatus('offline_saved');
-        toast.success('Salvato offline', { icon: '💾' });
+        toast.success('Salvato localmente (offline)', { icon: '💾' });
         return;
       }
 
-      const { error } = await supabase
-        .from('inventario')
-        .insert([sanitizedData]);
-
-      if (error) throw error;
+      // Se siamo online, proviamo la sincronizzazione immediata
+      // Usiamo un timeout breve per non bloccare l'utente se la rete è lenta
+      const savePromise = supabase.from('inventario').insert([sanitizedData]);
       
-      setStatus('success');
-      toast.success('Articolo salvato!');
+      // Se il salvataggio impiega più di 2 secondi, consideriamolo "in background"
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('timeout')), 2000)
+      );
+
+      try {
+        const result = await Promise.race([savePromise, timeoutPromise]) as any;
+        
+        if (result.error) throw result.error;
+        
+        // Successo! Rimuoviamo dalla coda locale
+        syncService.removeFromQueue(pendingItem.id);
+        setStatus('success');
+        toast.success('Articolo salvato in cloud!');
+      } catch (err: any) {
+        if (err.message === 'timeout') {
+          // Rete lenta: lasciamo l'item in coda e informiamo l'utente
+          setStatus('offline_saved');
+          toast('Rete lenta, salvataggio in background...', { icon: '⏳' });
+        } else {
+          throw err;
+        }
+      }
     } catch (err: any) {
       console.error('Errore salvataggio:', err);
       setStatus('error');
@@ -230,16 +252,27 @@ export default function InventoryForm({ initialData, onReset, sessionId }: Inven
             </label>
             <ConfidenceIndicator score={formData.confidence?.codice} />
           </div>
-          <input
-            type="text"
-            id="codice"
-            name="codice"
-            value={formData.codice}
-            onChange={handleChange}
-            className="input-field"
-            placeholder="Es. PRD-12345"
-            required
-          />
+          <div className="relative">
+            <input
+              type="text"
+              id="codice"
+              name="codice"
+              value={formData.codice}
+              onChange={handleChange}
+              className="input-field pr-12"
+              placeholder="Es. PRD-12345"
+              required
+            />
+            {formData.codice && (
+              <button
+                type="button"
+                onClick={() => handleChange({ target: { name: 'codice', value: '' } } as any)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-slate-500 rounded-xl transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -249,15 +282,26 @@ export default function InventoryForm({ initialData, onReset, sessionId }: Inven
             </label>
             <ConfidenceIndicator score={formData.confidence?.descrizione} />
           </div>
-          <textarea
-            id="descrizione"
-            name="descrizione"
-            value={formData.descrizione}
-            onChange={(e) => handleChange(e as any)}
-            className="input-field min-h-[80px] py-3 resize-none"
-            placeholder="Es. Vite a testa esagonale"
-            required
-          />
+          <div className="relative">
+            <textarea
+              id="descrizione"
+              name="descrizione"
+              value={formData.descrizione}
+              onChange={(e) => handleChange(e as any)}
+              className="input-field min-h-[80px] py-3 pr-12 resize-none"
+              placeholder="Es. Vite a testa esagonale"
+              required
+            />
+            {formData.descrizione && (
+              <button
+                type="button"
+                onClick={() => handleChange({ target: { name: 'descrizione', value: '' } } as any)}
+                className="absolute right-3 top-3 p-2 text-slate-300 hover:text-slate-500 rounded-xl transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -268,16 +312,27 @@ export default function InventoryForm({ initialData, onReset, sessionId }: Inven
               </label>
               <ConfidenceIndicator score={formData.confidence?.lotto} />
             </div>
-            <input
-              type="text"
-              id="lotto"
-              name="lotto"
-              value={formData.lotto}
-              onChange={handleChange}
-              className="input-field"
-              placeholder="Es. 250010"
-              required
-            />
+            <div className="relative">
+              <input
+                type="text"
+                id="lotto"
+                name="lotto"
+                value={formData.lotto}
+                onChange={handleChange}
+                className="input-field pr-12"
+                placeholder="Es. 250010"
+                required
+              />
+              {formData.lotto && (
+                <button
+                  type="button"
+                  onClick={() => handleChange({ target: { name: 'lotto', value: '' } } as any)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-slate-500 rounded-xl transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -298,6 +353,31 @@ export default function InventoryForm({ initialData, onReset, sessionId }: Inven
               placeholder="1"
               required
             />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="note" className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+            Note (Opzionale)
+          </label>
+          <div className="relative">
+            <textarea
+              id="note"
+              name="note"
+              value={formData.note || ''}
+              onChange={(e) => handleChange(e as any)}
+              className="input-field min-h-[60px] py-3 pr-12 resize-none"
+              placeholder="Aggiungi una nota..."
+            />
+            {formData.note && (
+              <button
+                type="button"
+                onClick={() => handleChange({ target: { name: 'note', value: '' } } as any)}
+                className="absolute right-3 top-3 p-2 text-slate-300 hover:text-slate-500 rounded-xl transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
