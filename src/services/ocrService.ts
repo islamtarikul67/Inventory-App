@@ -8,6 +8,12 @@ export interface ExtractedData {
   descrizione: string;
   lotto: string;
   quantita?: number;
+  confidence?: {
+    codice: number;
+    descrizione: number;
+    lotto: number;
+    quantita: number;
+  };
 }
 
 /**
@@ -28,7 +34,12 @@ export async function extractDataFromImage(base64Image: string, mimeType: string
             mimeType: mimeType,
           }
         },
-        "Analizza questa etichetta di inventario. Estrai le seguenti informazioni: Codice Prodotto, Descrizione, Lotto e Quantità. Usa la tua capacità di parsing intelligente per distinguere i campi. Se un campo testuale non è chiaramente presente, restituisci una stringa vuota. Se la quantità non è presente, restituisci 1."
+        "Analizza attentamente questa etichetta industriale e estrai i seguenti dati in formato JSON:\n" +
+        "- Codice Prodotto: Cerca il codice alfanumerico principale (spesso vicino a 'Codice:' o sotto un codice a barre).\n" +
+        "- Descrizione: Estrai l'INTERA descrizione testuale, inclusi codici di revisione (REV), norme (STD) e specifiche tecniche. Non troncare il testo.\n" +
+        "- Lotto: Cerca il numero di lotto o batch. Se non c'è l'etichetta esplicita 'Lotto', cerca numeri isolati in alto, vicino a codici a barre secondari o date di produzione (es. numeri di 6-10 cifre).\n" +
+        "- Quantità: Estrai solo il valore numerico (es. da '500,00 PZ' estrai 500).\n\n" +
+        "Sii estremamente preciso. Se un campo è assente, usa una stringa vuota (o 1 per quantità)."
       ],
       config: {
         responseMimeType: "application/json",
@@ -38,9 +49,20 @@ export async function extractDataFromImage(base64Image: string, mimeType: string
             codice: { type: Type.STRING, description: "Il codice identificativo del prodotto (es. SKU, Barcode text)" },
             descrizione: { type: Type.STRING, description: "La descrizione testuale del prodotto" },
             lotto: { type: Type.STRING, description: "Il lotto di produzione (es. LOT, L., Batch)" },
-            quantita: { type: Type.NUMBER, description: "La quantità indicata sull'etichetta. Se non presente, usa 1." }
+            quantita: { type: Type.NUMBER, description: "La quantità indicata sull'etichetta. Se non presente, usa 1." },
+            confidence: {
+              type: Type.OBJECT,
+              description: "Punteggi di confidenza (0-100) per ogni campo estratto",
+              properties: {
+                codice: { type: Type.NUMBER },
+                descrizione: { type: Type.NUMBER },
+                lotto: { type: Type.NUMBER },
+                quantita: { type: Type.NUMBER }
+              },
+              required: ["codice", "descrizione", "lotto", "quantita"]
+            }
           },
-          required: ["codice", "descrizione", "lotto", "quantita"]
+          required: ["codice", "descrizione", "lotto", "quantita", "confidence"]
         }
       }
     });

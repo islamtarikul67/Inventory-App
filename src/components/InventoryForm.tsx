@@ -1,24 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../supabaseClient';
 import { ExtractedData } from '../services/ocrService';
-import { CheckCircle2, AlertCircle, Loader2, Save, RotateCcw } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2, Save, RotateCcw, WifiOff, CloudOff, Database, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { syncService } from '../services/syncService';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface InventoryFormProps {
   initialData: ExtractedData;
   onReset: () => void;
+  sessionId: string | null;
 }
 
-export default function InventoryForm({ initialData, onReset }: InventoryFormProps) {
+export default function InventoryForm({ initialData, onReset, sessionId }: InventoryFormProps) {
   const [formData, setFormData] = useState<ExtractedData & { quantitaInput: number | string }>({
     ...initialData,
     quantitaInput: initialData.quantita !== undefined ? initialData.quantita : ''
   });
-  const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error' | 'offline_saved'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const sanitizeInput = (str: string) => {
+    return str.trim().replace(/[<>]/g, '');
+  };
+
+  const getConfidenceColor = (score?: number) => {
+    if (score === undefined) return 'bg-slate-200';
+    if (score >= 90) return 'bg-emerald-500';
+    if (score >= 70) return 'bg-amber-500';
+    return 'bg-rose-500';
+  };
+
+  const ConfidenceIndicator = ({ score }: { score?: number }) => {
+    if (score === undefined) return null;
+    return (
+      <motion.div 
+        initial={{ opacity: 0, x: 5 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="flex items-center gap-1.5 ml-2 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100" 
+        title={`Confidenza OCR: ${score}%`}
+      >
+        <div className={`w-1.5 h-1.5 rounded-full ${getConfidenceColor(score)} animate-pulse`}></div>
+        <span className="text-[10px] text-slate-400 font-bold tracking-tight">{score}%</span>
+      </motion.div>
+    );
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
     if (name === 'quantita') {
       setFormData(prev => ({ 
         ...prev, 
@@ -37,178 +78,263 @@ export default function InventoryForm({ initialData, onReset }: InventoryFormPro
     setStatus('saving');
     setErrorMessage('');
 
-    // Validazione base configurazione Supabase
     if (!supabaseUrl || !supabaseAnonKey) {
       setStatus('error');
-      setErrorMessage('Supabase non è configurato. Aggiungi VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY nelle impostazioni (Secrets) o nel file .env');
+      setErrorMessage('Supabase non è configurato. Controlla le impostazioni.');
       return;
     }
 
     try {
-      // Inserimento dati nella tabella 'inventario'
+      const sanitizedData = {
+        codice: sanitizeInput(formData.codice),
+        descrizione: sanitizeInput(formData.descrizione),
+        lotto: sanitizeInput(formData.lotto),
+        quantita: typeof formData.quantitaInput === 'number' ? formData.quantitaInput : 1,
+        sessione_id: sessionId
+      };
+
+      if (!isOnline) {
+        syncService.addToQueue(sanitizedData);
+        setStatus('offline_saved');
+        toast.success('Salvato offline', { icon: '💾' });
+        return;
+      }
+
       const { error } = await supabase
         .from('inventario')
-        .insert([
-          {
-            codice: formData.codice,
-            descrizione: formData.descrizione,
-            lotto: formData.lotto,
-            quantita: typeof formData.quantitaInput === 'number' ? formData.quantitaInput : 1,
-          }
-        ]);
+        .insert([sanitizedData]);
 
       if (error) throw error;
       
       setStatus('success');
-      toast.success('Articolo salvato nell\'inventario!');
+      toast.success('Articolo salvato!');
     } catch (err: any) {
       console.error('Errore salvataggio:', err);
       setStatus('error');
-      setErrorMessage(err.message || 'Errore durante il salvataggio nel database.');
+      setErrorMessage(err.message || 'Errore durante il salvataggio.');
       toast.error('Errore durante il salvataggio.');
     }
   };
 
-  if (status === 'success') {
+  if (status === 'success' || status === 'offline_saved') {
     return (
-      <div className="flex flex-col items-center justify-center p-8 bg-white rounded-2xl shadow-sm border border-emerald-100 text-center max-w-md mx-auto">
-        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4 shadow-inner">
-          <CheckCircle2 className="w-8 h-8" />
-        </div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">Salvato con successo!</h3>
-        <p className="text-gray-500 mb-8">I dati dell'articolo sono stati inseriti correttamente nell'inventario.</p>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="flex flex-col items-center justify-center p-10 bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 text-center max-w-md mx-auto"
+      >
+        <motion.div 
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
+          className={`w-24 h-24 ${status === 'offline_saved' ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500'} rounded-full flex items-center justify-center mb-8 shadow-inner relative`}
+        >
+          {status === 'offline_saved' ? (
+            <>
+              <Database className="w-12 h-12" />
+              <motion.div 
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="absolute -bottom-1 -right-1 bg-white p-1.5 rounded-full shadow-md border border-amber-100"
+              >
+                <WifiOff className="w-5 h-5 text-amber-500" />
+              </motion.div>
+            </>
+          ) : (
+            <CheckCircle2 className="w-12 h-12" />
+          )}
+        </motion.div>
+        
+        <h3 className="text-2xl font-black text-slate-900 mb-4 tracking-tight">
+          {status === 'offline_saved' ? 'Salvato Offline' : 'Ottimo Lavoro!'}
+        </h3>
+        
+        <p className="text-slate-500 mb-10 leading-relaxed font-medium">
+          {status === 'offline_saved' 
+            ? 'I dati sono stati salvati localmente e verranno sincronizzati automaticamente appena tornerai online.'
+            : 'L\'articolo è stato registrato correttamente nel database centrale.'}
+        </p>
+        
         <button
           onClick={onReset}
-          className="flex items-center justify-center w-full py-3.5 px-4 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors shadow-md"
+          className="group flex items-center justify-center w-full py-5 px-8 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-widest text-sm hover:bg-slate-800 transition-all shadow-xl hover:shadow-2xl active:scale-95"
         >
-          <RotateCcw className="w-5 h-5 mr-2" />
-          Inserisci un altro articolo
+          <RotateCcw className="w-5 h-5 mr-3 group-hover:rotate-180 transition-transform duration-500" />
+          Nuova Scansione
         </button>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="w-full max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative">
-      {status === 'saving' && (
-        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 animate-in fade-in duration-200">
-          <div className="relative flex items-center justify-center mb-4">
-            <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-75"></div>
-            <div className="relative bg-white p-3 rounded-full shadow-md border border-indigo-50">
-              <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-            </div>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900">Sincronizzazione...</h3>
-          <p className="text-sm text-gray-500 mt-1">Salvataggio su Supabase in corso</p>
-        </div>
-      )}
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="w-full max-w-md mx-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden relative"
+    >
+      <AnimatePresence>
+        {!isOnline && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="bg-amber-500 text-white px-6 py-3 flex items-center gap-3"
+          >
+            <CloudOff className="w-4 h-4 flex-shrink-0" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Modalità Offline Attiva</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-        <h2 className="text-lg font-semibold text-gray-900">Dati Articolo</h2>
-        <p className="text-sm text-gray-500 mt-1">Inserisci o verifica i dati dell'articolo prima di salvare.</p>
+      <AnimatePresence>
+        {status === 'saving' && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center z-20"
+          >
+            <div className="relative flex items-center justify-center mb-6">
+              <motion.div 
+                animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0.2, 0.5] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="absolute inset-0 bg-indigo-200 rounded-full"
+              ></motion.div>
+              <div className="relative bg-white p-5 rounded-3xl shadow-xl border border-indigo-50">
+                <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+              </div>
+            </div>
+            <h3 className="text-xl font-black text-slate-900 tracking-tight">Salvataggio...</h3>
+            <p className="text-sm font-bold text-slate-400 mt-2 uppercase tracking-widest">Sincronizzazione Cloud</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="p-6 sm:p-8 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">Verifica Dati</h2>
+          <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Conferma informazioni</p>
+        </div>
+        <button 
+          onClick={onReset}
+          className="p-2 sm:p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl sm:rounded-2xl transition-all"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-5">
-        <div>
-          <label htmlFor="codice" className="block text-sm font-medium text-gray-700 mb-1.5">
-            Codice Prodotto
-          </label>
+      <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-5 sm:space-y-6">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label htmlFor="codice" className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+              Codice Prodotto
+            </label>
+            <ConfidenceIndicator score={formData.confidence?.codice} />
+          </div>
           <input
             type="text"
             id="codice"
             name="codice"
             value={formData.codice}
             onChange={handleChange}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow bg-gray-50 focus:bg-white"
+            className="input-field"
             placeholder="Es. PRD-12345"
             required
           />
         </div>
 
-        <div>
-          <label htmlFor="descrizione" className="block text-sm font-medium text-gray-700 mb-1.5">
-            Descrizione
-          </label>
-          <input
-            type="text"
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label htmlFor="descrizione" className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+              Descrizione
+            </label>
+            <ConfidenceIndicator score={formData.confidence?.descrizione} />
+          </div>
+          <textarea
             id="descrizione"
             name="descrizione"
             value={formData.descrizione}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow bg-gray-50 focus:bg-white"
-            placeholder="Es. Vite a testa esagonale M8x20"
+            onChange={(e) => handleChange(e as any)}
+            className="input-field min-h-[80px] py-3 resize-none"
+            placeholder="Es. Vite a testa esagonale"
             required
           />
         </div>
 
-        <div>
-          <label htmlFor="lotto" className="block text-sm font-medium text-gray-700 mb-1.5">
-            Lotto
-          </label>
-          <input
-            type="text"
-            id="lotto"
-            name="lotto"
-            value={formData.lotto}
-            onChange={handleChange}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow bg-gray-50 focus:bg-white"
-            placeholder="Es. 250010"
-            required
-          />
-        </div>
-
-        <div>
-          <label htmlFor="quantita" className="block text-sm font-medium text-gray-700 mb-1.5">
-            Quantità
-          </label>
-          <input
-            type="number"
-            id="quantita"
-            name="quantita"
-            value={formData.quantitaInput}
-            onChange={handleChange}
-            min="1"
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow bg-gray-50 focus:bg-white"
-            placeholder="Es. 10"
-            required
-          />
-        </div>
-
-        {status === 'error' && (
-          <div className="p-4 bg-red-50 text-red-700 rounded-xl flex items-start text-sm border border-red-100">
-            <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
-            <span>{errorMessage}</span>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label htmlFor="lotto" className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+                Lotto
+              </label>
+              <ConfidenceIndicator score={formData.confidence?.lotto} />
+            </div>
+            <input
+              type="text"
+              id="lotto"
+              name="lotto"
+              value={formData.lotto}
+              onChange={handleChange}
+              className="input-field"
+              placeholder="Es. 250010"
+              required
+            />
           </div>
-        )}
 
-        <div className="pt-4 flex gap-3">
-          <button
-            type="button"
-            onClick={onReset}
-            className="flex-1 py-3 px-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
-            disabled={status === 'saving'}
-          >
-            Annulla
-          </button>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label htmlFor="quantita" className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+                Quantità
+              </label>
+              <ConfidenceIndicator score={formData.confidence?.quantita} />
+            </div>
+            <input
+              type="number"
+              id="quantita"
+              name="quantita"
+              value={formData.quantitaInput}
+              onChange={handleChange}
+              min="1"
+              className="input-field text-center font-black text-xl"
+              placeholder="1"
+              required
+            />
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {status === 'error' && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="p-4 bg-rose-50 text-rose-600 rounded-2xl flex items-start text-xs font-bold border border-rose-100"
+            >
+              <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
+              <span>{errorMessage}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="pt-4">
           <button
             type="submit"
             disabled={status === 'saving'}
-            className="flex-1 py-3 px-4 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors flex items-center justify-center disabled:opacity-70 shadow-sm"
+            className={`group w-full py-5 px-8 rounded-2xl font-black uppercase tracking-[0.2em] text-sm transition-all flex items-center justify-center shadow-xl active:scale-95 ${
+              !isOnline 
+                ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200' 
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
+            }`}
           >
             {status === 'saving' ? (
-              <>
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Salvataggio...
-              </>
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <>
-                <Save className="w-5 h-5 mr-2" />
-                Salva
+                {!isOnline ? <Database className="w-5 h-5 mr-3" /> : <Save className="w-5 h-5 mr-3" />}
+                {!isOnline ? 'Salva Offline' : 'Conferma e Salva'}
               </>
             )}
           </button>
         </div>
       </form>
-    </div>
+    </motion.div>
   );
 }
