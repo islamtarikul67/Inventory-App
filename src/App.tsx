@@ -4,6 +4,8 @@ import InventoryForm from './components/InventoryForm';
 import InventoryList from './components/InventoryList';
 import Auth from './components/Auth';
 import SessionSelector from './components/SessionSelector';
+import ProfileModal from './components/ProfileModal';
+import ProfileImage from './components/ProfileImage';
 import { extractDataFromImage, ExtractedData } from './services/ocrService';
 import { supabase } from './supabaseClient';
 import { Session } from '@supabase/supabase-js';
@@ -22,6 +24,7 @@ export default function App() {
   
   const [currentTab, setCurrentTab] = useState<Tab>('scanner');
   const [appState, setAppState] = useState<AppState>('scanning');
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
   const [error, setError] = useState<string>('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -80,7 +83,6 @@ export default function App() {
       
       if (!error) {
         syncService.clearQueue();
-        toast.success(`Sincronizzati ${queue.length} elementi salvati offline!`, { icon: '🔄' });
       } else {
         console.error('Errore durante la sincronizzazione batch:', error);
         // Se il batch fallisce, proviamo uno alla volta come fallback per salvare il salvabile
@@ -94,7 +96,7 @@ export default function App() {
           }
         }
         if (successCount > 0) {
-          toast.success(`Sincronizzati ${successCount} elementi!`, { icon: '🔄' });
+          // Sync success message removed
         }
       }
     } catch (err) {
@@ -154,8 +156,7 @@ export default function App() {
       }
 
       if (event === 'SIGNED_IN' && session?.user?.email) {
-        const username = session.user.email.split('@')[0];
-        toast.success(`Benvenuto, ${username}!`, { icon: '👋' });
+        // Welcome message removed as per user request
       }
     });
 
@@ -210,7 +211,6 @@ export default function App() {
     });
     setAppState('editing');
     setError('');
-    toast.success('Dati acquisiti con successo!');
   };
 
   if (isInitializing) {
@@ -249,7 +249,7 @@ export default function App() {
             </motion.div>
             <div className="hidden xs:block">
               <h1 className="text-sm sm:text-xl font-black tracking-tight text-slate-900 leading-none">Inventory</h1>
-              <span className="text-[7px] sm:text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Smart OCR v1.1.0</span>
+              <span className="text-[7px] sm:text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Smart OCR v2.5.1</span>
             </div>
           </div>
 
@@ -316,10 +316,20 @@ export default function App() {
             />
 
             <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
-              <div className="hidden lg:flex flex-col items-end">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Operatore</span>
-                <span className="text-sm font-black text-slate-700 leading-none">{getUserName()}</span>
-              </div>
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setIsProfileOpen(true)}
+                className="hidden lg:flex items-center gap-3 cursor-pointer group"
+              >
+                <div className="flex flex-col items-end">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 group-hover:text-indigo-500 transition-colors">Operatore</span>
+                  <span className="text-sm font-black text-slate-700 leading-none group-hover:text-slate-900 transition-colors">{getUserName()}</span>
+                </div>
+                <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-white shadow-sm group-hover:border-indigo-100 transition-all">
+                  <ProfileImage url={session?.user?.user_metadata?.avatar_url} />
+                </div>
+              </motion.div>
               <motion.button 
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -347,9 +357,13 @@ export default function App() {
                 </motion.div>
               )}
             </AnimatePresence>
-            <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
-              <User className="w-4 h-4" />
-            </div>
+            <motion.div 
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setIsProfileOpen(true)}
+              className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 cursor-pointer overflow-hidden border border-indigo-100"
+            >
+              <ProfileImage url={session?.user?.user_metadata?.avatar_url} size="small" />
+            </motion.div>
           </div>
         </div>
       </header>
@@ -404,6 +418,10 @@ export default function App() {
                     onManualEntry={handleManualEntry} 
                     onBarcodeScan={handleBarcodeScan}
                   />
+
+                  <div className="mt-12 text-center">
+                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.3em]">Version 2.5.1</span>
+                  </div>
                 </div>
               )}
 
@@ -493,16 +511,13 @@ export default function App() {
           onSessionChange={setCurrentSession} 
           dropUp={true}
         />
-
-        <motion.button 
-          whileTap={{ scale: 0.95 }}
-          onClick={handleLogout}
-          className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all border border-slate-100 shadow-sm"
-          title="Esci"
-        >
-          <LogOut className="w-4 h-4" />
-        </motion.button>
       </div>
+      <ProfileModal 
+        isOpen={isProfileOpen} 
+        onClose={() => setIsProfileOpen(false)} 
+        session={session}
+        onLogout={handleLogout}
+      />
     </div>
   );
 }

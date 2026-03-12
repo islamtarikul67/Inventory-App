@@ -99,7 +99,6 @@ export default function InventoryForm({ initialData, onReset, sessionId }: Inven
 
       if (!isOnline) {
         setStatus('offline_saved');
-        toast.success('Salvato localmente (offline)', { icon: '💾' });
         return;
       }
 
@@ -120,12 +119,10 @@ export default function InventoryForm({ initialData, onReset, sessionId }: Inven
         // Successo! Rimuoviamo dalla coda locale
         syncService.removeFromQueue(pendingItem.id);
         setStatus('success');
-        toast.success('Articolo salvato in cloud!');
       } catch (err: any) {
         if (err.message === 'timeout') {
           // Rete lenta: lasciamo l'item in coda e informiamo l'utente
           setStatus('offline_saved');
-          toast('Rete lenta, salvataggio in background...', { icon: '⏳' });
         } else {
           throw err;
         }
