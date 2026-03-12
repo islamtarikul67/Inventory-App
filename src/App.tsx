@@ -330,15 +330,6 @@ export default function App() {
                   <ProfileImage url={session?.user?.user_metadata?.avatar_url} />
                 </div>
               </motion.div>
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleLogout}
-                className="w-11 h-11 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all border border-slate-100 hover:border-rose-100 shadow-sm"
-                title="Esci"
-              >
-                <LogOut className="w-5 h-5" />
-              </motion.button>
             </div>
           </div>
           
