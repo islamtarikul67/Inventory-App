@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-import { Loader2, AlertCircle, RefreshCw, Database, PackageOpen, Pencil, Trash2, Check, X, AlertTriangle, Download, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, Database, PackageOpen, Pencil, Trash2, Check, X, AlertTriangle, Download, ChevronLeft, ChevronRight, Search, FileSpreadsheet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
+import * as XLSX from 'xlsx';
 
 interface InventoryItem {
   id: number;
@@ -395,6 +396,63 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
     }
   };
 
+  const exportToExcel = async () => {
+    setActionLoading(true);
+    try {
+      let query = supabase
+        .from('inventario')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (sessionId) {
+        query = query.eq('sessione_id', sessionId);
+      } else {
+        query = query.is('sessione_id', null);
+      }
+
+      const { data: exportItems, error } = await query;
+      if (error) throw error;
+
+      if (!exportItems || exportItems.length === 0) {
+        toast.error('Nessun dato da esportare');
+        return;
+      }
+
+      // Prepara i dati per Excel (senza barcode, solo testo)
+      const data = exportItems.map(item => ({
+        'Codice': item.codice,
+        'Descrizione': item.descrizione,
+        'Lotto': item.lotto,
+        'Note': item.note || '',
+        'Quantità': item.quantita,
+        'Data Creazione': new Date(item.created_at).toLocaleString('it-IT')
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Inventario");
+
+      // Imposta larghezza colonne
+      const wscols = [
+        { wch: 20 }, // Codice
+        { wch: 40 }, // Descrizione
+        { wch: 15 }, // Lotto
+        { wch: 20 }, // Note
+        { wch: 10 }, // Quantità
+        { wch: 20 }  // Data
+      ];
+      worksheet['!cols'] = wscols;
+
+      XLSX.writeFile(workbook, `inventario_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success('File Excel generato con successo!');
+    } catch (err: any) {
+      console.error('Errore esportazione Excel:', err);
+      toast.error('Errore durante l\'esportazione Excel');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
   const currentItems = items;
 
@@ -459,9 +517,19 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
               onClick={exportToHTML}
               disabled={loading || items.length === 0}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 text-[10px] font-black uppercase tracking-widest text-slate-700 bg-white border-2 border-slate-100 rounded-xl sm:rounded-2xl hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
+              title="Esporta in HTML per stampa con Barcode"
             >
               <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="sm:inline">Esporta / Stampa</span>
+              <span className="hidden sm:inline">Stampa</span>
+            </button>
+            <button 
+              onClick={exportToExcel}
+              disabled={loading || items.length === 0}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 text-[10px] font-black uppercase tracking-widest text-white bg-indigo-600 border-2 border-indigo-600 rounded-xl sm:rounded-2xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 disabled:opacity-50"
+              title="Esporta in Excel senza Barcode"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Excel</span>
             </button>
             <button 
               onClick={fetchInventory}
