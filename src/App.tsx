@@ -344,6 +344,11 @@ export default function App() {
           
           {/* Mobile Status Indicator */}
           <div className="sm:hidden flex items-center gap-2">
+            <SessionSelector 
+              currentSessionId={currentSession?.id || null} 
+              onSessionChange={setCurrentSession} 
+              dropUp={false}
+            />
             <AnimatePresence>
               {!isOnline && (
                 <motion.div 
@@ -357,13 +362,6 @@ export default function App() {
                 </motion.div>
               )}
             </AnimatePresence>
-            <motion.div 
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setIsProfileOpen(true)}
-              className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 cursor-pointer overflow-hidden border border-indigo-100"
-            >
-              <ProfileImage url={session?.user?.user_metadata?.avatar_url} size="small" />
-            </motion.div>
           </div>
         </div>
       </header>
@@ -506,11 +504,13 @@ export default function App() {
           </button>
         </nav>
 
-        <SessionSelector 
-          currentSessionId={currentSession?.id || null} 
-          onSessionChange={setCurrentSession} 
-          dropUp={true}
-        />
+        <motion.div 
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setIsProfileOpen(true)}
+          className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 cursor-pointer overflow-hidden border border-indigo-100"
+        >
+          <ProfileImage url={session?.user?.user_metadata?.avatar_url} size="small" />
+        </motion.div>
       </div>
       <ProfileModal 
         isOpen={isProfileOpen} 
