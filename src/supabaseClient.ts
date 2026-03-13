@@ -10,12 +10,12 @@ const isValidUrl = (url: string) => {
   }
 };
 
-let envUrl = import.meta.env.VITE_SUPABASE_URL || '';
+let envUrl = (import.meta.env.VITE_SUPABASE_URL || '').replace(/\s+/g, '');
 if (!isValidUrl(envUrl)) {
   envUrl = 'https://ozckxztjsautiylvptmf.supabase.co';
 }
 
-let envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+let envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').replace(/\s+/g, '');
 if (!envKey || envKey === 'YOUR_SUPABASE_ANON_KEY') {
   envKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96Y2t4enRqc2F1dGl5bHZwdG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMDcyODIsImV4cCI6MjA4ODc4MzI4Mn0.q6HJgzh7LCCQWeH897azaqfTgwF7gYwaaYufdSq6wPM';
 }

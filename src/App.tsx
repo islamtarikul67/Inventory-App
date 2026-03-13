@@ -14,6 +14,7 @@ import { PackageSearch, Loader2, List, Camera, LogOut, WifiOff, AlertTriangle, U
 import toast, { Toaster } from 'react-hot-toast';
 import { syncService } from './services/syncService';
 import { motion, AnimatePresence } from 'motion/react';
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 type AppState = 'scanning' | 'processing' | 'editing';
 type Tab = 'scanner' | 'inventory';
@@ -511,6 +512,7 @@ export default function App() {
         session={session}
         onLogout={handleLogout}
       />
+      <SpeedInsights />
     </div>
   );
 }
