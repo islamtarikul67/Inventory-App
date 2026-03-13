@@ -94,39 +94,26 @@ export default function InventoryForm({ initialData, onReset, sessionId }: Inven
         sessione_id: sessionId
       };
 
-      // Aggiungiamo sempre alla coda locale prima per sicurezza e velocità percepita
-      const pendingItem = syncService.addToQueue(sanitizedData);
-
       if (!isOnline) {
+        syncService.addToQueue(sanitizedData);
         setStatus('offline_saved');
         return;
       }
 
-      // Se siamo online, proviamo la sincronizzazione immediata
-      // Usiamo un timeout breve per non bloccare l'utente se la rete è lenta
-      const savePromise = supabase.from('inventario').insert([sanitizedData]);
+      // Se siamo online, proviamo il salvataggio diretto
+      const { error } = await supabase.from('inventario').insert([sanitizedData]);
       
-      // Se il salvataggio impiega più di 2 secondi, consideriamolo "in background"
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('timeout')), 2000)
-      );
-
-      try {
-        const result = await Promise.race([savePromise, timeoutPromise]) as any;
-        
-        if (result.error) throw result.error;
-        
-        // Successo! Rimuoviamo dalla coda locale
-        syncService.removeFromQueue(pendingItem.id);
-        setStatus('success');
-      } catch (err: any) {
-        if (err.message === 'timeout') {
-          // Rete lenta: lasciamo l'item in coda e informiamo l'utente
-          setStatus('offline_saved');
-        } else {
-          throw err;
+      if (error) {
+        // Se è un errore di rete, salviamo offline
+        if (error.message === 'Failed to fetch' || error.message.includes('network') || error.message.includes('timeout')) {
+           syncService.addToQueue(sanitizedData);
+           setStatus('offline_saved');
+           return;
         }
+        throw error;
       }
+      
+      setStatus('success');
     } catch (err: any) {
       console.error('Errore salvataggio:', err);
       setStatus('error');

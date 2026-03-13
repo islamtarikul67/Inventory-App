@@ -29,6 +29,7 @@ export default function App() {
   const [error, setError] = useState<string>('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
+  const isSyncingRef = React.useRef(false);
   const [currentSession, setCurrentSession] = useState<InventorySession | null>(() => {
     const saved = localStorage.getItem('last_inventory_session');
     return saved ? JSON.parse(saved) : null;
@@ -62,10 +63,12 @@ export default function App() {
 
   const syncOfflineData = async () => {
     if (!session) return;
+    if (isSyncingRef.current) return;
     
     const queue = syncService.getQueue();
     if (queue.length === 0) return;
 
+    isSyncingRef.current = true;
     setIsSyncing(true);
     
     try {
@@ -102,6 +105,7 @@ export default function App() {
     } catch (err) {
       console.error('Errore imprevisto durante la sincronizzazione:', err);
     } finally {
+      isSyncingRef.current = false;
       setIsSyncing(false);
     }
   };

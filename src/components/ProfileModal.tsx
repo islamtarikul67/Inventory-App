@@ -17,6 +17,7 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
   const [isUploading, setIsUploading] = useState(false);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [name, setName] = useState(session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0] || '');
   const [surname, setSurname] = useState(session?.user?.user_metadata?.surname || '');
   const [isEditing, setIsEditing] = useState(false);
@@ -26,6 +27,7 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
     if (isOpen) {
       setLocalAvatarUrl(session?.user?.user_metadata?.avatar_url || null);
       setPreviewUrl(null);
+      setSelectedFile(null);
       setName(session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0] || '');
       setSurname(session?.user?.user_metadata?.surname || '');
     }
@@ -72,7 +74,7 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -87,9 +89,14 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
       return;
     }
 
-    // Imposta la preview locale
+    // Imposta la preview locale e il file selezionato
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
+    setSelectedFile(file);
+  };
+
+  const handleConfirmUpload = async () => {
+    if (!selectedFile) return;
 
     try {
       setIsUploading(true);
@@ -97,13 +104,13 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
       const uploadToast = toast.loading('Caricamento foto...');
       
       // 1. Carica il file su Supabase Storage
-      const fileExt = file.name.split('.').pop();
+      const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const filePath = `profiles/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('APP-DATA')
-        .upload(filePath, file, {
+        .upload(filePath, selectedFile, {
           upsert: true,
           cacheControl: '3600'
         });
@@ -135,6 +142,7 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
       await supabase.auth.refreshSession();
 
       setLocalAvatarUrl(publicUrl);
+      setSelectedFile(null);
       toast.dismiss(uploadToast);
       toast.success('Foto profilo aggiornata!');
       
@@ -142,10 +150,17 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
       console.error('Errore durante l\'upload della foto:', error);
       toast.error(error.message || 'Impossibile caricare la foto. Riprova.');
       setPreviewUrl(null); // Revert preview on error
+      setSelectedFile(null);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const handleCancelUpload = () => {
+    setPreviewUrl(null);
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDeletePhoto = async () => {
@@ -297,23 +312,45 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
                     <h2 className="text-2xl font-bold text-slate-900 tracking-tight leading-tight">
                       {name} {surname}
                     </h2>
-                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                      <button 
-                        onClick={() => setIsEditing(true)}
-                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider transition-colors bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full"
-                      >
-                        Modifica Profilo
-                      </button>
-                      {avatarUrl && (
+                    
+                    {selectedFile ? (
+                      <div className="flex flex-wrap items-center gap-2 mt-3">
                         <button 
-                          onClick={handleDeletePhoto}
+                          onClick={handleConfirmUpload}
                           disabled={isUploading}
-                          className="text-[10px] font-bold text-rose-600 hover:text-rose-700 uppercase tracking-wider transition-colors bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-full"
+                          className="text-[10px] font-bold text-white uppercase tracking-wider transition-colors bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-full flex items-center gap-1"
                         >
-                          Rimuovi Foto
+                          {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                          Conferma Foto
                         </button>
-                      )}
-                    </div>
+                        <button 
+                          onClick={handleCancelUpload}
+                          disabled={isUploading}
+                          className="text-[10px] font-bold text-slate-600 hover:text-slate-700 uppercase tracking-wider transition-colors bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-full flex items-center gap-1"
+                        >
+                          <X className="w-3 h-3" />
+                          Annulla
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2 mt-3">
+                        <button 
+                          onClick={() => setIsEditing(true)}
+                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider transition-colors bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full"
+                        >
+                          Modifica Profilo
+                        </button>
+                        {avatarUrl && (
+                          <button 
+                            onClick={handleDeletePhoto}
+                            disabled={isUploading}
+                            className="text-[10px] font-bold text-rose-600 hover:text-rose-700 uppercase tracking-wider transition-colors bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-full"
+                          >
+                            Rimuovi Foto
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </div>

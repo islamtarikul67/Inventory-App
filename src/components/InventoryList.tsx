@@ -36,6 +36,21 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+
+  const searchPlaceholders = [
+    "Cerca per codice...",
+    "Cerca per descrizione...",
+    "Cerca per lotto...",
+    "Cerca per codice, descrizione o lotto..."
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % searchPlaceholders.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -418,7 +433,7 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
             </div>
             <input
               type="text"
-              placeholder="Cerca..."
+              placeholder={searchPlaceholders[placeholderIndex]}
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
