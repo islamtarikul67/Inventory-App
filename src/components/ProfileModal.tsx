@@ -413,7 +413,8 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
               
               <div className="mt-6 text-center">
                 <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-                  Version 2.5.1 (Build 102)
+                  Version 2.6.0 (Build 103) <br/>
+                  <span className="text-indigo-400">Made by Mohammed</span>
                 </p>
               </div>
             </div>

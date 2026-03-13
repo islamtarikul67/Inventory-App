@@ -348,7 +348,8 @@ export default function Auth() {
         transition={{ delay: 0.5 }}
         className="mt-8 text-center text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]"
       >
-        &copy; 2026 Inventory OCR System &bull; v2.5.1
+        &copy; 2026 Inventory OCR System &bull; v2.6.0 <br/>
+        <span className="text-indigo-400">Made by Mohammed</span>
       </motion.p>
     </div>
   );
