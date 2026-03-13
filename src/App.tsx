@@ -249,7 +249,6 @@ export default function App() {
             </motion.div>
             <div className="hidden xs:block">
               <h1 className="text-sm sm:text-xl font-black tracking-tight text-slate-900 leading-none">Inventory</h1>
-              <span className="text-[7px] sm:text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Smart OCR v2.5.1</span>
             </div>
           </div>
 
@@ -409,7 +408,6 @@ export default function App() {
                   />
 
                   <div className="mt-12 text-center">
-                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.3em]">Version 2.5.1</span>
                   </div>
                 </div>
               )}

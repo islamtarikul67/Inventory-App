@@ -172,30 +172,35 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
 
           {/* Modal */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="fixed inset-0 m-auto w-full max-w-md h-[90vh] bg-white rounded-[2.5rem] shadow-2xl z-[70] overflow-hidden border border-slate-100 flex flex-col"
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+            className="fixed inset-0 m-auto w-full max-w-md h-[85vh] sm:h-[650px] bg-white sm:rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] z-[70] overflow-hidden flex flex-col"
           >
             {/* Header Area with Gradient */}
-            <div className="relative h-32 bg-gradient-to-br from-indigo-600 to-violet-700 p-6">
+            <div className="relative h-36 bg-gradient-to-br from-indigo-500 via-purple-500 to-violet-600 p-6 shrink-0">
+              {/* Glassmorphism elements inside header */}
+              <div className="absolute -top-24 -right-24 w-48 h-48 bg-white/20 rounded-full blur-2xl overflow-hidden"></div>
+              <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/20 to-transparent overflow-hidden"></div>
+              
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-md transition-all"
+                className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center bg-black/10 hover:bg-black/20 text-white rounded-full backdrop-blur-md transition-all z-10"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
               
-              <div className="absolute -bottom-12 left-8">
+              <div className="absolute -bottom-12 left-8 z-20">
                 <div className="relative group">
-                  <div className="w-24 h-24 bg-white rounded-3xl shadow-xl flex items-center justify-center border-4 border-white overflow-hidden">
+                  <div className="w-24 h-24 bg-white rounded-2xl shadow-xl flex items-center justify-center border-4 border-white overflow-hidden">
                     <ProfileImage url={avatarUrl} size="large" />
                     
                     {/* Overlay per upload */}
                     <button 
                       onClick={handlePhotoClick}
                       disabled={isUploading}
-                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white backdrop-blur-sm"
                     >
                       {isUploading ? (
                         <Loader2 className="w-6 h-6 animate-spin" />
@@ -217,88 +222,128 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
             </div>
 
             {/* Content */}
-            <div className="pt-16 pb-8 px-8 overflow-y-auto flex-1">
-              <div className="mb-8 flex justify-between items-start">
-                <div className="flex-1">
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="text-2xl font-black text-slate-900 tracking-tight w-full bg-slate-100 p-2 rounded-lg"
-                    />
-                  ) : (
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">{name}</h2>
-                  )}
-                  <div className="flex gap-2 items-center mt-1">
-                    <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
-                      {isEditing ? (
-                        <span className="text-slate-400">{surname || 'Cognome non impostato'}</span>
-                      ) : (
-                        surname || 'Cognome non impostato'
-                      )}
-                    </p>
-                    <button 
-                      onClick={() => isEditing ? handleSaveProfile() : setIsEditing(true)}
-                      className="text-[10px] font-black text-indigo-500 hover:text-indigo-700 uppercase tracking-widest transition-colors"
-                    >
-                      {isEditing ? 'Salva' : 'Modifica'}
-                    </button>
-                  </div>
-                </div>
-                {avatarUrl && (
-                  <button 
-                    onClick={handleDeletePhoto}
-                    disabled={isUploading}
-                    className="text-[10px] font-black text-rose-400 hover:text-rose-600 uppercase tracking-widest transition-colors"
+            <div className="pt-16 pb-6 px-8 overflow-y-auto flex-1 bg-white">
+              <div className="mb-8">
+                {isEditing ? (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-4"
                   >
-                    Rimuovi Foto
-                  </button>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Nome</label>
+                        <input
+                          type="text"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm font-semibold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                          placeholder="Il tuo nome"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Cognome</label>
+                        <input
+                          type="text"
+                          value={surname}
+                          onChange={(e) => setSurname(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm font-semibold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                          placeholder="Il tuo cognome"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button 
+                        onClick={handleSaveProfile}
+                        disabled={isUploading}
+                        className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors flex items-center justify-center"
+                      >
+                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salva'}
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setIsEditing(false);
+                          setName(session?.user?.user_metadata?.name || session.user.email?.split('@')[0] || '');
+                          setSurname(session?.user?.user_metadata?.surname || '');
+                        }}
+                        className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider rounded-xl transition-colors"
+                      >
+                        Annulla
+                      </button>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col items-start"
+                  >
+                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight leading-tight">
+                      {name} {surname}
+                    </h2>
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      <button 
+                        onClick={() => setIsEditing(true)}
+                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider transition-colors bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-full"
+                      >
+                        Modifica Profilo
+                      </button>
+                      {avatarUrl && (
+                        <button 
+                          onClick={handleDeletePhoto}
+                          disabled={isUploading}
+                          className="text-[10px] font-bold text-rose-600 hover:text-rose-700 uppercase tracking-wider transition-colors bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-full"
+                        >
+                          Rimuovi Foto
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
                 )}
               </div>
 
-              <div className="space-y-4 mb-10">
-                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 shadow-sm">
+              <div className="space-y-3 mb-8">
+                <div className="flex items-center p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 mr-4 shrink-0">
                     <Mail className="w-5 h-5" />
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Email</p>
-                    <p className="text-sm font-bold text-slate-700">{user.email}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Email</p>
+                    <p className="text-sm font-semibold text-slate-900 truncate">{user.email}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 shadow-sm">
+                <div className="flex items-center p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 mr-4 shrink-0">
                     <Calendar className="w-5 h-5" />
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Membro dal</p>
-                    <p className="text-sm font-bold text-slate-700">{createdAt}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Membro dal</p>
+                    <p className="text-sm font-semibold text-slate-900 truncate">{createdAt}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 shadow-sm">
+                <div className="flex items-center p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-10 h-10 bg-violet-50 rounded-full flex items-center justify-center text-violet-600 mr-4 shrink-0">
                     <Shield className="w-5 h-5" />
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">ID Utente (Generato)</p>
-                    <p className="text-[10px] font-mono font-bold text-slate-500 break-all">{generatedId}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">ID Utente</p>
+                    <p className="text-xs font-mono font-medium text-slate-500 truncate">{generatedId}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 text-center">
-                  <Package className="w-6 h-6 text-indigo-600 mx-auto mb-2" />
-                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Stato</p>
-                  <p className="text-sm font-black text-indigo-700">Attivo</p>
+              <div className="grid grid-cols-2 gap-3 mb-8">
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center text-center">
+                  <Package className="w-5 h-5 text-slate-400 mb-2" />
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Stato</p>
+                  <p className="text-sm font-bold text-slate-700">Attivo</p>
                 </div>
-                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-center">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full mx-auto mb-3 animate-pulse" />
-                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Sessione</p>
-                  <p className="text-sm font-black text-emerald-700">Online</p>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center text-center">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full mb-3 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Sessione</p>
+                  <p className="text-sm font-bold text-slate-700">Online</p>
                 </div>
               </div>
 
@@ -307,11 +352,17 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
                   onLogout();
                   onClose();
                 }}
-                className="w-full py-4 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 border border-rose-100"
+                className="w-full py-3.5 bg-white hover:bg-rose-50 text-rose-600 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 border border-rose-100 hover:border-rose-200 shadow-sm"
               >
                 <LogOut className="w-4 h-4" />
                 Disconnetti Account
               </button>
+              
+              <div className="mt-6 text-center">
+                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+                  Version 2.5.1
+                </p>
+              </div>
             </div>
           </motion.div>
         </>

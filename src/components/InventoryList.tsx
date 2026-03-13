@@ -505,20 +505,20 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <div className="hidden md:block px-8 pb-8">
-                <table className="w-full text-left border-separate border-spacing-y-3">
+              <div className="hidden md:block px-6 pb-6">
+                <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                      <th className="px-6 py-4 w-[5%]">#</th>
-                      <th className="px-6 py-4 w-[20%]">Codice</th>
-                      <th className="px-6 py-4 w-[30%]">Descrizione</th>
-                      <th className="px-6 py-4 w-[15%]">Lotto</th>
-                      <th className="px-6 py-4 w-[10%]">Note</th>
-                      <th className="px-6 py-4 text-right w-[10%]">Quantità</th>
-                      <th className="px-6 py-4 text-right w-[10%]">Azioni</th>
+                    <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b-2 border-slate-100">
+                      <th className="px-4 py-4 w-[5%] text-center">#</th>
+                      <th className="px-4 py-4 w-[20%]">Codice</th>
+                      <th className="px-4 py-4 w-[30%]">Descrizione</th>
+                      <th className="px-4 py-4 w-[15%]">Lotto</th>
+                      <th className="px-4 py-4 w-[10%]">Note</th>
+                      <th className="px-4 py-4 text-center w-[10%]">Quantità</th>
+                      <th className="px-4 py-4 text-right w-[10%]">Azioni</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100">
                     <AnimatePresence initial={false}>
                       {currentItems.map((item, index) => (
                         <motion.tr 
@@ -527,12 +527,12 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, x: -20 }}
-                          className={`group transition-all duration-300 ${editingId === item.id ? 'bg-indigo-50/50' : 'bg-white hover:bg-slate-50/50'}`}
+                          className={`group transition-all duration-200 ${editingId === item.id ? 'bg-indigo-50/80 ring-1 ring-indigo-200' : index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} hover:bg-slate-100/80`}
                         >
                           {editingId === item.id ? (
                             <>
-                              <td className="px-4 py-3 first:rounded-l-2xl">
-                                <span className="text-sm font-black text-slate-400">{totalCount - ((currentPage - 1) * ITEMS_PER_PAGE + index)}</span>
+                              <td className="px-4 py-3 text-center">
+                                <span className="text-xs font-bold text-slate-400">{totalCount - ((currentPage - 1) * ITEMS_PER_PAGE + index)}</span>
                               </td>
                               <td className="px-4 py-3">
                                 <input 
@@ -540,7 +540,7 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                                   name="codice" 
                                   value={editFormData.codice || ''} 
                                   onChange={handleEditChange} 
-                                  className="w-full px-4 py-2 text-sm font-bold border-2 border-indigo-200 rounded-xl focus:ring-0 outline-none bg-white shadow-sm"
+                                  className="w-full px-3 py-2 text-sm font-semibold border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white shadow-sm transition-all"
                                 />
                               </td>
                               <td className="px-4 py-3">
@@ -549,7 +549,7 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                                   name="descrizione" 
                                   value={editFormData.descrizione || ''} 
                                   onChange={handleEditChange} 
-                                  className="w-full px-4 py-2 text-sm font-bold border-2 border-indigo-200 rounded-xl focus:ring-0 outline-none bg-white shadow-sm"
+                                  className="w-full px-3 py-2 text-sm font-semibold border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white shadow-sm transition-all"
                                 />
                               </td>
                               <td className="px-4 py-3">
@@ -558,7 +558,7 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                                   name="lotto" 
                                   value={editFormData.lotto || ''} 
                                   onChange={handleEditChange} 
-                                  className="w-full px-4 py-2 text-sm font-bold border-2 border-indigo-200 rounded-xl focus:ring-0 outline-none bg-white shadow-sm"
+                                  className="w-full px-3 py-2 text-sm font-semibold border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white shadow-sm transition-all"
                                 />
                               </td>
                               <td className="px-4 py-3">
@@ -567,7 +567,7 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                                   name="note" 
                                   value={editFormData.note || ''} 
                                   onChange={handleEditChange} 
-                                  className="w-full px-4 py-2 text-sm font-bold border-2 border-indigo-200 rounded-xl focus:ring-0 outline-none bg-white shadow-sm"
+                                  className="w-full px-3 py-2 text-sm font-semibold border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white shadow-sm transition-all"
                                   placeholder="Note..."
                                 />
                               </td>
@@ -577,22 +577,22 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                                   name="quantita" 
                                   value={editFormData.quantita || 0} 
                                   onChange={handleEditChange} 
-                                  className="w-full px-4 py-2 text-sm font-bold border-2 border-indigo-200 rounded-xl focus:ring-0 outline-none bg-white shadow-sm text-right"
+                                  className="w-full px-3 py-2 text-sm font-semibold border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white shadow-sm text-center transition-all"
                                 />
                               </td>
-                              <td className="px-4 py-3 last:rounded-r-2xl text-right">
+                              <td className="px-4 py-3 text-right">
                                 <div className="flex justify-end gap-2">
                                   <button 
                                     onClick={() => handleSaveEdit(item.id)} 
                                     disabled={actionLoading}
-                                    className="p-2.5 text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl transition-all shadow-lg shadow-emerald-100"
+                                    className="p-2 text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors shadow-sm"
                                   >
                                     {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                                   </button>
                                   <button 
                                     onClick={handleCancelEdit} 
                                     disabled={actionLoading}
-                                    className="p-2.5 text-slate-400 bg-white border-2 border-slate-100 hover:bg-slate-50 rounded-xl transition-all"
+                                    className="p-2 text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors shadow-sm"
                                   >
                                     <X className="w-4 h-4" />
                                   </button>
@@ -601,37 +601,37 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                             </>
                           ) : (
                             <>
-                              <td className="px-6 py-5 first:rounded-l-2xl">
-                                <span className="font-black text-slate-400 tracking-tight">{totalCount - ((currentPage - 1) * ITEMS_PER_PAGE + index)}</span>
+                              <td className="px-4 py-4 text-center">
+                                <span className="text-xs font-bold text-slate-400">{totalCount - ((currentPage - 1) * ITEMS_PER_PAGE + index)}</span>
                               </td>
-                              <td className="px-6 py-5">
-                                <span className="font-black text-slate-900 tracking-tight">{item.codice}</span>
+                              <td className="px-4 py-4">
+                                <span className="text-sm font-bold text-slate-900">{item.codice}</span>
                               </td>
-                              <td className="px-6 py-5">
-                                <span className="text-sm font-bold text-slate-500">{item.descrizione}</span>
+                              <td className="px-4 py-4">
+                                <span className="text-sm font-medium text-slate-600">{item.descrizione}</span>
                               </td>
-                              <td className="px-6 py-5">
-                                <span className="inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 border border-slate-200/50">
+                              <td className="px-4 py-4">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest bg-slate-200/50 text-slate-600">
                                   {item.lotto}
                                 </span>
                               </td>
-                              <td className="px-6 py-5">
-                                <span className="text-sm font-medium text-slate-500">{item.note || '-'}</span>
+                              <td className="px-4 py-4">
+                                <span className="text-xs font-medium text-slate-500">{item.note || '-'}</span>
                               </td>
-                              <td className="px-6 py-5 text-right">
-                                <span className="text-lg font-black text-indigo-600 tracking-tight">{item.quantita}</span>
+                              <td className="px-4 py-4 text-center">
+                                <span className="text-base font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">{item.quantita}</span>
                               </td>
-                              <td className="px-6 py-5 last:rounded-r-2xl text-right">
-                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
+                              <td className="px-4 py-4 text-right">
+                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                   <button 
                                     onClick={() => handleEditClick(item)} 
-                                    className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" 
+                                    className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors" 
                                   >
                                     <Pencil className="w-4 h-4" />
                                   </button>
                                   <button 
                                     onClick={() => handleDeleteClick(item.id)} 
-                                    className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-all" 
+                                    className="p-2 text-rose-500 hover:bg-rose-100 rounded-lg transition-colors" 
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
