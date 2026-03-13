@@ -16,7 +16,8 @@ interface ProfileModalProps {
 export default function ProfileModal({ isOpen, onClose, session, onLogout }: ProfileModalProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
-  const [name, setName] = useState(session?.user?.user_metadata?.name || session.user.email?.split('@')[0] || '');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [name, setName] = useState(session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0] || '');
   const [surname, setSurname] = useState(session?.user?.user_metadata?.surname || '');
   const [isEditing, setIsEditing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -24,15 +25,24 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
   useEffect(() => {
     if (isOpen) {
       setLocalAvatarUrl(session?.user?.user_metadata?.avatar_url || null);
-      setName(session?.user?.user_metadata?.name || session.user.email?.split('@')[0] || '');
+      setPreviewUrl(null);
+      setName(session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0] || '');
       setSurname(session?.user?.user_metadata?.surname || '');
     }
   }, [isOpen, session]);
 
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
   if (!session) return null;
 
   const user = session.user;
-  const avatarUrl = localAvatarUrl || user.user_metadata?.avatar_url;
+  const avatarUrl = previewUrl || localAvatarUrl || user.user_metadata?.avatar_url;
   const createdAt = new Date(user.created_at).toLocaleDateString('it-IT', {
     day: 'numeric',
     month: 'long',
@@ -76,6 +86,10 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
       toast.error('L\'immagine è troppo grande (max 2MB)');
       return;
     }
+
+    // Imposta la preview locale
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
 
     try {
       setIsUploading(true);
@@ -127,6 +141,7 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
     } catch (error: any) {
       console.error('Errore durante l\'upload della foto:', error);
       toast.error(error.message || 'Impossibile caricare la foto. Riprova.');
+      setPreviewUrl(null); // Revert preview on error
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -147,6 +162,7 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
 
       await supabase.auth.refreshSession();
       setLocalAvatarUrl(null);
+      setPreviewUrl(null);
       toast.dismiss(deleteToast);
       toast.success('Foto profilo rimossa');
     } catch (error: any) {
@@ -360,7 +376,7 @@ export default function ProfileModal({ isOpen, onClose, session, onLogout }: Pro
               
               <div className="mt-6 text-center">
                 <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-                  Version 2.5.1
+                  Version 2.5.1 (Build 102)
                 </p>
               </div>
             </div>

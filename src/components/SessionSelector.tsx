@@ -157,7 +157,7 @@ export default function SessionSelector({ currentSessionId, onSessionChange, dro
         </div>
         <div className="flex flex-col items-start min-w-0 sm:min-w-[120px]">
           <span className="hidden sm:block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Sessione Attiva</span>
-          <span className="text-xs sm:text-sm font-bold text-slate-700 truncate max-w-[60px] xs:max-w-[100px] sm:max-w-[150px]">
+          <span className="text-xs sm:text-sm font-bold text-slate-700 break-words text-left">
             {currentSession ? currentSession.nome : 'Nessuna'}
           </span>
         </div>
@@ -252,24 +252,24 @@ export default function SessionSelector({ currentSessionId, onSessionChange, dro
                               : 'hover:bg-slate-50 border border-transparent'
                           }`}
                         >
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-xl transition-colors ${
-                              currentSessionId === session.id ? 'bg-white text-indigo-600' : 'bg-slate-100 text-slate-400 group-hover:bg-white group-hover:text-indigo-500'
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className={`flex-shrink-0 p-2 rounded-xl transition-colors ${
+                              currentSessionId === session.id ? 'bg-white text-indigo-600 shadow-sm' : 'bg-slate-100 text-slate-400 group-hover:bg-white group-hover:text-indigo-500'
                             }`}>
                               <Calendar className="w-4 h-4" />
                             </div>
-                            <div className="text-left">
-                              <div className={`text-sm font-bold transition-colors ${
+                            <div className="text-left flex-1 min-w-0">
+                              <div className={`text-sm font-bold break-words leading-tight transition-colors ${
                                 currentSessionId === session.id ? 'text-indigo-700' : 'text-slate-700 group-hover:text-indigo-600'
                               }`}>
                                 {session.nome}
                               </div>
-                              <div className="text-[10px] font-medium text-slate-400">
+                              <div className="text-[10px] font-medium text-slate-400 mt-0.5">
                                 {new Date(session.data_inizio).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                             {currentSessionId === session.id && (
                               <div className="p-1.5 bg-indigo-600 text-white rounded-lg shadow-md shadow-indigo-100">
                                 <Check className="w-3 h-3" />

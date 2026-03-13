@@ -648,7 +648,7 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
 
               <div className="md:hidden flex flex-col p-4 sm:p-6 gap-4 bg-slate-50/30">
                 <AnimatePresence initial={false}>
-                  {currentItems.map((item) => (
+                  {currentItems.map((item, index) => (
                     <motion.div 
                       key={item.id} 
                       layout
@@ -729,37 +729,47 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="font-black text-slate-900 text-lg tracking-tight">{item.codice}</div>
-                              <div className="text-sm font-bold text-slate-400 mt-1">{item.descrizione}</div>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-black text-slate-900 text-lg tracking-tight break-words leading-tight">
+                                {item.codice}
+                              </div>
+                              <div className="text-xs font-bold text-slate-400 mt-1.5 leading-relaxed">
+                                {item.descrizione}
+                              </div>
                             </div>
-                            <div className="text-2xl font-black text-indigo-600 tracking-tighter bg-indigo-50 px-3 py-1 rounded-2xl">
+                            <div className="flex-shrink-0 text-xl font-black text-indigo-600 tracking-tighter bg-indigo-50 px-3 py-1.5 rounded-xl">
                               x{item.quantita}
                             </div>
                           </div>
-                          <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                            <div className="flex flex-col gap-2">
-                              <span className="inline-flex items-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 border border-slate-200/50 w-fit">
+                          
+                          <div className="flex items-end justify-between pt-3 border-t border-slate-50 gap-4">
+                            <div className="flex flex-col gap-2 flex-1 min-w-0">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 border border-slate-200/50 w-fit">
                                 Lotto: {item.lotto}
                               </span>
-                              {item.note && (
-                                <span className="text-xs font-medium text-slate-500">
-                                  Note: {item.note}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {item.note && (
+                                  <span className="text-xs font-medium text-slate-500 truncate max-w-[120px] sm:max-w-[200px]">
+                                    Note: {item.note}
+                                  </span>
+                                )}
+                                <span className="flex items-center justify-center px-2 py-0.5 bg-slate-100 rounded-md text-[10px] font-black text-slate-400 w-fit flex-shrink-0">
+                                  #{totalCount - ((currentPage - 1) * ITEMS_PER_PAGE + index)}
                                 </span>
-                              )}
+                              </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-1 flex-shrink-0">
                               <button 
                                 onClick={() => handleEditClick(item)} 
-                                className="p-3 text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all" 
+                                className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" 
                               >
                                 <Pencil className="w-4 h-4" />
                               </button>
                               <button 
                                 onClick={() => handleDeleteClick(item.id)} 
-                                className="p-3 text-rose-500 hover:bg-rose-50 rounded-2xl transition-all" 
+                                className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-all" 
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
