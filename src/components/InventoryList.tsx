@@ -164,6 +164,10 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
   const exportToHTML = async () => {
     setActionLoading(true);
     try {
+      // 1. Identificazione Cliente
+      const match = debouncedSearchTerm.match(/^(\d{3})-/);
+      const clientId = match ? match[1] : null;
+
       let query = supabase
         .from('inventario')
         .select('*')
@@ -175,6 +179,12 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
         query = query.is('sessione_id', null);
       }
 
+      // 2. Applicazione filtro di ricerca corrente
+      if (debouncedSearchTerm.trim()) {
+        const search = `%${debouncedSearchTerm.trim()}%`;
+        query = query.or(`codice.ilike.${search},descrizione.ilike.${search},lotto.ilike.${search}`);
+      }
+
       const { data: exportItems, error } = await query;
       if (error) throw error;
 
@@ -183,197 +193,91 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
         return;
       }
 
+      // 3. Calcolo Sommario
+      const totalRows = exportItems.length;
+      const totalQty = exportItems.reduce((sum, item) => sum + item.quantita, 0);
+
       const htmlContent = `
 <!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Esportazione Inventario</title>
+  <title>Report Inventario ${clientId ? `- Cliente ${clientId}` : ''}</title>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <style>
-    body { 
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
-      margin: 0; 
-      padding: 0;
-      color: #000;
-      background: #fff;
-    }
-    @page { 
-      size: A4 portrait; 
-      margin: 10mm; 
-    }
-    .print-container {
-      padding: 20px;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #000;
-      font-size: 22px;
-      text-transform: uppercase;
-    }
-    table { 
-      width: 100%; 
-      border-collapse: collapse; 
-      margin-bottom: 20px;
-      table-layout: fixed;
-    }
-    th, td { 
-      border: 1px solid #000; 
-      padding: 8px 6px; 
-      vertical-align: middle;
-      line-height: 1.2;
-    }
-    th { 
-      background-color: #f0f0f0; 
-      font-weight: bold; 
-      text-transform: uppercase;
-      font-size: 10px;
-      letter-spacing: 0.05em;
-      text-align: center;
-    }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 20px; color: #000; background: #fff; }
+    @page { size: A4 portrait; margin: 10mm; }
+    h1 { text-align: center; font-size: 18px; text-transform: uppercase; margin-bottom: 5px; }
+    h2 { text-align: center; font-size: 14px; margin-bottom: 20px; color: #555; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }
+    th, td { border: 1px solid #000; padding: 6px 4px; vertical-align: middle; line-height: 1.2; }
+    th { background-color: #f0f0f0; font-weight: bold; text-transform: uppercase; font-size: 9px; text-align: center; }
     
     /* Column Widths */
-    th:nth-child(1) { width: 35%; } /* CODICE */
-    th:nth-child(2) { width: 32%; } /* DESCRIZIONE */
-    th:nth-child(3) { width: 17%; } /* LOTTO BARCODE */
-    th:nth-child(4) { width: 6%; } /* NOTE */
-    th:nth-child(5) { width: 10%; } /* QUANTITÀ */
+    th:nth-child(1) { width: 3%; }  /* N. */
+    th:nth-child(2) { width: 35%; } /* CODICE */
+    th:nth-child(3) { width: 26%; } /* DESCRIZIONE */
+    th:nth-child(4) { width: 17%; } /* LOTTO BARCODE */
+    th:nth-child(5) { width: 6%; }  /* NOTE */
+    th:nth-child(6) { width: 8%; }  /* QUANTITÀ */
     
-    .barcode-cell {
-      text-align: center;
-      padding: 6px 2px;
-    }
-    .barcode-svg {
-      height: auto;
-      display: block;
-      margin: 0 auto;
-      max-width: 100%;
-    }
-    .desc-cell {
-      vertical-align: middle;
-      word-wrap: break-word;
-      font-size: 9px;
-    }
-    .note-cell {
-      vertical-align: middle;
-      word-wrap: break-word;
-      font-size: 8px;
-      text-align: center;
-    }
-    .qty-cell {
-      text-align: right;
-      font-weight: bold;
-      font-size: 12px;
-      font-variant-numeric: tabular-nums;
-    }
+    .barcode-cell { text-align: center; padding: 4px 2px; }
+    .barcode-svg { height: auto; display: block; margin: 0 auto; max-width: 100%; }
+    .desc-cell { font-size: 9px; }
+    .note-cell { font-size: 8px; text-align: center; }
+    .qty-cell { text-align: right; font-weight: bold; font-size: 11px; }
     
-    .no-print {
-      text-align: center; 
-      margin-top: 20px;
-      padding: 20px;
-    }
-    .print-btn {
-      padding: 10px 20px; 
-      font-size: 16px; 
-      cursor: pointer; 
-      background: #4f46e5; 
-      color: white; 
-      border: none; 
-      border-radius: 6px;
-    }
+    .summary { font-size: 12px; font-weight: bold; margin-top: 10px; border-top: 2px solid #000; padding-top: 10px; }
     
     @media print {
-      body { padding: 0; }
-      .print-container { padding: 0; }
       .no-print { display: none !important; }
       table { page-break-inside: auto; }
-      tr { page-break-inside: avoid; page-break-after: auto; }
-      thead { display: table-header-group; }
-      tfoot { display: table-footer-group; }
+      tr { page-break-inside: avoid; }
     }
   </style>
 </head>
 <body>
-  <div class="print-container">
-    <h2>Distinta Inventario</h2>
-    <table>
-      <thead>
+  <h1>Report Inventario ${clientId ? `Cliente: ${clientId}` : ''}</h1>
+  ${clientId ? `<h2>Filtro attivo: ${debouncedSearchTerm}</h2>` : ''}
+  <table>
+    <thead>
+      <tr>
+        <th>N.</th>
+        <th>Codice</th>
+        <th>Descrizione</th>
+        <th>Lotto Barcode</th>
+        <th>Note</th>
+        <th>Quantità</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${exportItems.map((item, index) => `
         <tr>
-          <th>Codice</th>
-          <th>Descrizione</th>
-          <th>Lotto Barcode</th>
-          <th>Note</th>
-          <th>Quantità</th>
+          <td class="note-cell">${exportItems.length - index}</td>
+          <td class="barcode-cell">
+            <svg class="barcode-svg codice-barcode" data-value="${item.codice}"></svg>
+          </td>
+          <td class="desc-cell">${item.descrizione}</td>
+          <td class="barcode-cell">
+            <svg class="barcode-svg lotto-barcode" data-value="${item.lotto}"></svg>
+          </td>
+          <td class="note-cell">${item.note || ''}</td>
+          <td class="qty-cell">${item.quantita}</td>
         </tr>
-      </thead>
-      <tbody>
-        ${exportItems.map((item, index) => `
-          <tr>
-            <td class="barcode-cell">
-              <svg class="barcode-svg codice-barcode" data-value="${item.codice}"></svg>
-            </td>
-            <td class="desc-cell">${item.descrizione}</td>
-            <td class="barcode-cell">
-              <svg class="barcode-svg lotto-barcode" data-value="${item.lotto}"></svg>
-            </td>
-            <td class="note-cell">${item.note || ''}</td>
-            <td class="qty-cell">${item.quantita}</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  </div>
-  <div class="no-print">
-    <button onclick="window.print()" class="print-btn">Stampa Documento</button>
-  </div>
+      `).join('')}
+    </tbody>
+  </table>
   <script>
-    // Generate Codice Barcodes
-    document.querySelectorAll('.codice-barcode').forEach(svg => {
+    // Generate Barcodes
+    document.querySelectorAll('.barcode-svg').forEach(svg => {
       const value = svg.getAttribute('data-value');
       if (value) {
         try {
-          JsBarcode(svg, value, {
-            format: "CODE128",
-            width: 1.1,
-            height: 40,
-            displayValue: true,
-            fontSize: 10,
-            margin: 0,
-            textMargin: 2
-          });
-        } catch (e) {
-          console.error("Error generating codice barcode for", value, e);
-          svg.outerHTML = "<span style='font-size: 10px;'>" + value + "</span>";
-        }
+          JsBarcode(svg, value, { format: "CODE128", width: 1.1, height: 30, displayValue: true, fontSize: 9, margin: 0, textMargin: 1 });
+        } catch (e) { svg.outerHTML = "<span style='font-size: 8px;'>" + value + "</span>"; }
       }
     });
-
-    // Generate Lotto Barcodes
-    document.querySelectorAll('.lotto-barcode').forEach(svg => {
-      const value = svg.getAttribute('data-value');
-      if (value) {
-        try {
-          JsBarcode(svg, value, {
-            format: "CODE128",
-            width: 1.1,
-            height: 40,
-            displayValue: true,
-            fontSize: 10,
-            margin: 0,
-            textMargin: 2
-          });
-        } catch (e) {
-          console.error("Error generating lotto barcode for", value, e);
-          svg.outerHTML = "<span style='font-size: 10px;'>" + value + "</span>";
-        }
-      }
-    });
-
-    // Auto-print after a short delay to ensure SVGs are rendered
-    setTimeout(() => {
-      window.print();
-    }, 800);
+    setTimeout(() => { window.print(); }, 800);
   </script>
 </body>
 </html>
@@ -410,6 +314,12 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
         query = query.is('sessione_id', null);
       }
 
+      // Applicazione filtro di ricerca corrente
+      if (debouncedSearchTerm.trim()) {
+        const search = `%${debouncedSearchTerm.trim()}%`;
+        query = query.or(`codice.ilike.${search},descrizione.ilike.${search},lotto.ilike.${search}`);
+      }
+
       const { data: exportItems, error } = await query;
       if (error) throw error;
 
@@ -419,7 +329,8 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
       }
 
       // Prepara i dati per Excel (senza barcode, solo testo)
-      const data = exportItems.map(item => ({
+      const data = exportItems.map((item, index) => ({
+        'N.': exportItems.length - index,
         'Codice': item.codice,
         'Descrizione': item.descrizione,
         'Lotto': item.lotto,
@@ -434,6 +345,7 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
 
       // Imposta larghezza colonne
       const wscols = [
+        { wch: 5 },  // N.
         { wch: 20 }, // Codice
         { wch: 40 }, // Descrizione
         { wch: 15 }, // Lotto
@@ -496,6 +408,10 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
         </div>
         
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full lg:w-auto">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-slate-100 rounded-xl sm:rounded-2xl shadow-sm">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Righe:</span>
+            <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{totalCount}</span>
+          </div>
           <div className="relative flex-grow">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
               <Search className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-400" />
@@ -593,7 +509,8 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                 <table className="w-full text-left border-separate border-spacing-y-3">
                   <thead>
                     <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                      <th className="px-6 py-4 w-[25%]">Codice</th>
+                      <th className="px-6 py-4 w-[5%]">#</th>
+                      <th className="px-6 py-4 w-[20%]">Codice</th>
                       <th className="px-6 py-4 w-[30%]">Descrizione</th>
                       <th className="px-6 py-4 w-[15%]">Lotto</th>
                       <th className="px-6 py-4 w-[10%]">Note</th>
@@ -603,7 +520,7 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                   </thead>
                   <tbody>
                     <AnimatePresence initial={false}>
-                      {currentItems.map((item) => (
+                      {currentItems.map((item, index) => (
                         <motion.tr 
                           key={item.id} 
                           layout
@@ -615,6 +532,9 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                           {editingId === item.id ? (
                             <>
                               <td className="px-4 py-3 first:rounded-l-2xl">
+                                <span className="text-sm font-black text-slate-400">{totalCount - ((currentPage - 1) * ITEMS_PER_PAGE + index)}</span>
+                              </td>
+                              <td className="px-4 py-3">
                                 <input 
                                   type="text" 
                                   name="codice" 
@@ -682,6 +602,9 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
                           ) : (
                             <>
                               <td className="px-6 py-5 first:rounded-l-2xl">
+                                <span className="font-black text-slate-400 tracking-tight">{totalCount - ((currentPage - 1) * ITEMS_PER_PAGE + index)}</span>
+                              </td>
+                              <td className="px-6 py-5">
                                 <span className="font-black text-slate-900 tracking-tight">{item.codice}</span>
                               </td>
                               <td className="px-6 py-5">
