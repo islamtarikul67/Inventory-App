@@ -188,7 +188,7 @@ export default function App() {
     } catch (err: any) {
       console.error("Errore OCR:", err);
       const errorMessage = err?.message || "Errore sconosciuto durante l'analisi dell'immagine.";
-      setError(`Impossibile leggere l'etichetta. ${errorMessage.includes('Nessun dato') ? 'Assicurati che l\'immagine contenga un\'etichetta chiara.' : 'Riprova con un\'immagine più nitida o ben illuminata.'}`);
+      setError(`Impossibile leggere l'etichetta: ${errorMessage}`);
       setAppState('scanning');
     }
   };
