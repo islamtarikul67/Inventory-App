@@ -182,7 +182,9 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
       }, 1500);
 
     } catch (err: any) {
-      console.error("Error starting barcode scanner:", err);
+      // Log as warning instead of error to avoid triggering automatic error reports
+      // when the user simply doesn't have a camera
+      console.warn("Warning starting barcode scanner:", err);
       const errorMessage = err?.message || String(err) || "";
       const lowerError = errorMessage.toLowerCase();
       
@@ -214,7 +216,7 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
 
     return () => {
       if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current.stop().catch(console.error);
+        scannerRef.current.stop().catch(console.warn);
       }
     };
   }, [retryCount]);
@@ -230,7 +232,7 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
         await video.play();
         setIsVideoPlaying(true);
       } catch (err) {
-        console.error('Forced play failed:', err);
+        console.warn('Forced play failed:', err);
       }
     }
   };
@@ -239,7 +241,7 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
     if (scannerRef.current && scannerRef.current.isScanning) {
       scannerRef.current.stop().then(() => {
         onScan({ codice, lotto });
-      }).catch(console.error);
+      }).catch(console.warn);
     } else {
       onScan({ codice, lotto });
     }

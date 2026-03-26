@@ -31,7 +31,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
         const videoDevices = allDevices.filter(device => device.kind === 'videoinput');
         setDevices(videoDevices);
       } catch (err) {
-        console.error('Errore enumerazione dispositivi:', err);
+        console.warn('Avviso enumerazione dispositivi:', err);
       }
     };
     getDevices();
@@ -121,7 +121,9 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
       setStream(mediaStream);
       setCurrentDeviceId(targetDeviceId || null);
     } catch (err: any) {
-      console.error('Errore fotocamera:', err);
+      // Log as warning instead of error to avoid triggering automatic error reports
+      // when the user simply doesn't have a camera
+      console.warn('Avviso fotocamera:', err);
       const errorMessage = err?.message || String(err) || "";
       const lowerError = errorMessage.toLowerCase();
       
@@ -160,7 +162,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
         try {
           track.stop();
         } catch (e) {
-          console.error("Error stopping track", e);
+          console.warn("Warning stopping track", e);
         }
       });
       streamRef.current = null;
@@ -256,7 +258,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
         await videoRef.current.play();
         setIsVideoPlaying(true);
       } catch (err) {
-        console.error('Forced play failed:', err);
+        console.warn('Forced play failed:', err);
       }
     }
   };
@@ -440,7 +442,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
                   el.play().then(() => {
                     setIsVideoPlaying(true);
                   }).catch(err => {
-                    console.error('Auto-play failed in ref callback:', err);
+                    console.warn('Auto-play failed in ref callback:', err);
                     // We don't set isVideoPlaying to true here so the overlay can show
                   });
                 }
