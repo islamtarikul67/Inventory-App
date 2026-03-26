@@ -12,30 +12,60 @@
 
   --shadow-premium: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 4px 12px -4px rgba(0, 0, 0, 0.03);
   --shadow-premium-hover: 0 20px 40px -5px rgba(0, 0, 0, 0.08), 0 8px 16px -4px rgba(0, 0, 0, 0.04);
+  --shadow-glow-primary: 0 0 20px rgba(79, 70, 229, 0.3);
+  --shadow-glow-success: 0 0 20px rgba(16, 185, 129, 0.2);
 }
 
 @layer base {
   body {
-    @apply font-sans bg-background text-slate-900 antialiased;
+    @apply font-sans bg-slate-50 text-slate-900 antialiased;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.03) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(167, 139, 250, 0.03) 0px, transparent 50%);
   }
 }
 
-.glass-panel {
-  @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-premium;
+@utility glass-morphism {
+  @apply bg-white/70 backdrop-blur-2xl border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.04),0_10px_30px_rgba(0,0,0,0.02)];
 }
 
-.data-card {
+@utility soft-inner-shadow {
+  @apply shadow-[inset_0_2px_4px_rgba(0,0,0,0.02),inset_0_-1px_1px_rgba(255,255,255,0.5)];
+}
+
+@utility premium-input {
+  @apply w-full px-6 py-4.5 rounded-[1.5rem] border-2 border-slate-100/50 bg-slate-50/50 focus:border-indigo-500 focus:bg-white focus:shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all duration-500 outline-none font-bold text-slate-700 placeholder:text-slate-300 soft-inner-shadow;
+}
+
+@utility soft-neumorph {
+  @apply bg-slate-50 border border-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.6),0_2px_4px_rgba(0,0,0,0.02)];
+}
+
+@utility ambient-glow {
+  @apply relative;
+}
+
+.ambient-glow::before {
+  content: '';
+  @apply absolute -inset-4 bg-indigo-500/5 blur-2xl rounded-[3rem] -z-10 opacity-0 transition-opacity duration-500;
+}
+
+.ambient-glow:hover::before {
+  @apply opacity-100;
+}
+
+@utility data-card {
   @apply bg-white border border-slate-200 rounded-3xl shadow-premium hover:shadow-premium-hover transition-all duration-300;
 }
 
-.btn-primary {
+@utility btn-primary {
   @apply bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-2xl transition-all active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none shadow-lg shadow-indigo-200 hover:shadow-indigo-300;
 }
 
-.btn-secondary {
+@utility btn-secondary {
   @apply bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3 px-6 rounded-2xl transition-all active:scale-[0.97] shadow-sm hover:shadow-md;
 }
 
-.input-field {
+@utility input-field {
   @apply w-full px-5 py-4 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 focus:ring-0 transition-all bg-slate-50 font-bold text-slate-700 placeholder:text-slate-300 outline-none;
 }

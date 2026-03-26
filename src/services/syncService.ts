@@ -1,42 +1,23 @@
-export interface PendingItem {
-  id: string;
-  codice: string;
-  descrizione: string;
-  lotto: string;
-  quantita: number;
-  sessione_id: string;
-  timestamp: number;
-}
+import { InventoryItem } from '../types';
 
-const QUEUE_KEY = 'inventory_offline_queue';
+const QUEUE_KEY = 'inventory_sync_queue';
 
 export const syncService = {
-  getQueue(): PendingItem[] {
-    try {
-      const queue = localStorage.getItem(QUEUE_KEY);
-      return queue ? JSON.parse(queue) : [];
-    } catch (e) {
-      console.error('Error reading offline queue', e);
-      return [];
-    }
+  getQueue(): InventoryItem[] {
+    const saved = localStorage.getItem(QUEUE_KEY);
+    return saved ? JSON.parse(saved) : [];
   },
 
-  addToQueue(item: Omit<PendingItem, 'id' | 'timestamp'>) {
+  addToQueue(item: InventoryItem) {
     const queue = this.getQueue();
-    const newItem: PendingItem = {
-      ...item,
-      id: crypto.randomUUID(),
-      timestamp: Date.now()
-    };
-    queue.push(newItem);
+    queue.push(item);
     localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-    return newItem;
   },
 
   removeFromQueue(id: string) {
     const queue = this.getQueue();
-    const newQueue = queue.filter(item => item.id !== id);
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(newQueue));
+    const filtered = queue.filter(item => item.id !== id);
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(filtered));
   },
 
   clearQueue() {

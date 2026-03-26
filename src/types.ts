@@ -1,19 +1,19 @@
-export interface InventorySession {
-  id: string;
-  nome: string;
-  data_inizio: string;
-  stato: 'aperta' | 'chiusa';
-  creato_da: string;
-}
-
-export interface InventoryItem {
-  id: string;
+export interface ScanResult {
   codice: string;
   descrizione: string;
+  quantita: string;
   lotto: string;
-  quantita: number;
-  note?: string;
-  sessione_id: string;
-  creato_at: string;
-  creato_da: string;
+  data_produzione: string | null;
+  confidence: {
+    barcode: number;
+    codice: number;
+    descrizione: number;
+    quantita: number;
+  };
+  source: {
+    codice: "barcode" | "ocr";
+    lotto: "barcode";
+    descrizione: "ocr";
+    quantita: "ocr";
+  };
 }

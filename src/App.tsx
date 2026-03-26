@@ -209,12 +209,8 @@ export default function App() {
     setError('');
   };
 
-  const handleBarcodeScan = (data: { codice: string, lotto: string }) => {
-    setExtractedData({
-      codice: data.codice,
-      descrizione: '',
-      lotto: data.lotto
-    });
+  const handleBarcodeScan = (data: ExtractedData) => {
+    setExtractedData(data);
     setAppState('editing');
     setError('');
   };
@@ -392,9 +388,19 @@ export default function App() {
                     </motion.div>
                   )}
                   
-                  <div className="text-center mb-6 sm:mb-10">
-                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-2 sm:mb-3">Acquisizione Dati</h2>
-                    <p className="text-sm sm:text-base text-slate-500 max-w-xs mx-auto">Scegli il metodo di inserimento per aggiornare il tuo inventario.</p>
+                  <div className="text-center mb-12 sm:mb-16">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 bg-indigo-50/50 backdrop-blur-md text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-[0.25em] border border-indigo-100/50 shadow-sm"
+                    >
+                      <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+                      Smart Acquisition
+                    </motion.div>
+                    <h2 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight mb-4">Data Acquisition</h2>
+                    <p className="text-sm sm:text-lg text-slate-500 max-w-sm mx-auto font-medium leading-relaxed opacity-80">
+                      Digitalizza il tuo magazzino con strumenti di precisione alimentati dall'intelligenza artificiale.
+                    </p>
                   </div>
                   
                   {error && (
