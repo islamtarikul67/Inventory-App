@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, User, Mail, Calendar, Shield, LogOut, Package, Camera, Loader2 } from 'lucide-react';
+import { X, User, Mail, Calendar, Shield, LogOut, Package, Camera, Loader2, Check } from 'lucide-react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
 import toast from 'react-hot-toast';

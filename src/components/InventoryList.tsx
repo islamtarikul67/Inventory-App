@@ -221,24 +221,24 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <style>
     body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 20px; color: #000; background: #fff; }
-    @page { size: A4 portrait; margin: 10mm; }
+    @page { size: A4 landscape; margin: 10mm; }
     h1 { text-align: center; font-size: 18px; text-transform: uppercase; margin-bottom: 5px; }
     h2 { text-align: center; font-size: 14px; margin-bottom: 20px; color: #555; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }
     th, td { border: 1px solid #000; padding: 6px 4px; vertical-align: middle; line-height: 1.2; }
     th { background-color: #f0f0f0; font-weight: bold; text-transform: uppercase; font-size: 9px; text-align: center; }
     
-    /* Column Widths */
+    /* Column Widths for Landscape */
     th:nth-child(1) { width: 3%; }  /* N. */
-    th:nth-child(2) { width: 35%; } /* CODICE */
-    th:nth-child(3) { width: 26%; } /* DESCRIZIONE */
-    th:nth-child(4) { width: 17%; } /* LOTTO BARCODE */
-    th:nth-child(5) { width: 6%; }  /* NOTE */
-    th:nth-child(6) { width: 8%; }  /* QUANTITÀ */
+    th:nth-child(2) { width: 45%; } /* CODICE - Aumentato per barcode lunghi */
+    th:nth-child(3) { width: 20%; } /* DESCRIZIONE - Ridotto per far spazio */
+    th:nth-child(4) { width: 18%; } /* LOTTO BARCODE */
+    th:nth-child(5) { width: 7%; }  /* NOTE */
+    th:nth-child(6) { width: 7%; }  /* QUANTITÀ */
     
-    .barcode-cell { text-align: center; padding: 4px 2px; }
+    .barcode-cell { text-align: center; padding: 8px 4px; overflow: hidden; }
     .barcode-svg { height: auto; display: block; margin: 0 auto; max-width: 100%; }
-    .desc-cell { font-size: 9px; }
+    .desc-cell { font-size: 9px; word-wrap: break-word; overflow-wrap: break-word; }
     .note-cell { font-size: 8px; text-align: center; }
     .qty-cell { text-align: right; font-weight: bold; font-size: 11px; }
     
@@ -288,7 +288,15 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
       const value = svg.getAttribute('data-value');
       if (value) {
         try {
-          JsBarcode(svg, value, { format: "CODE128", width: 1.1, height: 30, displayValue: true, fontSize: 9, margin: 0, textMargin: 1 });
+          JsBarcode(svg, value, { 
+            format: "CODE128", 
+            width: 1.3, 
+            height: 35, 
+            displayValue: true, 
+            fontSize: 10, 
+            margin: 0, 
+            textMargin: 2 
+          });
         } catch (e) { svg.outerHTML = "<span style='font-size: 8px;'>" + value + "</span>"; }
       }
     });
