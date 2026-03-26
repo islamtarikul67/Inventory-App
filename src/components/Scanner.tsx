@@ -101,7 +101,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
         video: targetDeviceId 
           ? { deviceId: { exact: targetDeviceId } } 
           : { 
-              facingMode: 'environment',
+              facingMode: { ideal: 'environment' },
             }
       };
 
@@ -125,7 +125,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
       const errorMessage = err?.message || String(err) || "";
       const lowerError = errorMessage.toLowerCase();
       
-      if (err?.name === 'NotFoundError' || lowerError.includes('requested device not found') || lowerError.includes('notfounderror')) {
+      if (err?.name === 'NotFoundError' || err?.name === 'OverconstrainedError' || lowerError.includes('device not found') || lowerError.includes('notfounderror') || lowerError.includes('overconstrainederror')) {
         setError('Nessuna fotocamera trovata. Assicurati che il dispositivo abbia una fotocamera funzionante.');
       } else if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError' || lowerError.includes('not allowed') || lowerError.includes('permission denied')) {
         setError('Accesso negato. Se stai usando l\'anteprima, prova ad aprire l\'app in una NUOVA SCHEDA (pulsante in alto a destra) per concedere i permessi correttamente.');

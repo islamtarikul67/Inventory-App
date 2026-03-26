@@ -236,7 +236,7 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
     th:nth-child(5) { width: 7%; }  /* NOTE */
     th:nth-child(6) { width: 7%; }  /* QUANTITÀ */
     
-    .barcode-cell { text-align: center; padding: 8px 4px; overflow: hidden; }
+    .barcode-cell { text-align: center; padding: 4px 2px; overflow: hidden; }
     .barcode-svg { height: auto; display: block; margin: 0 auto; max-width: 100%; }
     .desc-cell { font-size: 9px; word-wrap: break-word; overflow-wrap: break-word; }
     .note-cell { font-size: 8px; text-align: center; }
@@ -290,12 +290,12 @@ export default function InventoryList({ sessionId }: InventoryListProps) {
         try {
           JsBarcode(svg, value, { 
             format: "CODE128", 
-            width: 1.3, 
-            height: 35, 
+            width: 1.0, 
+            height: 25, 
             displayValue: true, 
-            fontSize: 10, 
+            fontSize: 8, 
             margin: 0, 
-            textMargin: 2 
+            textMargin: 1 
           });
         } catch (e) { svg.outerHTML = "<span style='font-size: 8px;'>" + value + "</span>"; }
       }

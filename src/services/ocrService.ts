@@ -38,9 +38,9 @@ export async function extractDataFromImage(base64Image: string, mimeType: string
         "Analizza attentamente questa etichetta industriale e estrai i seguenti dati in formato JSON:\n" +
         "- Codice Prodotto: Cerca il codice alfanumerico principale (spesso vicino a 'Codice:' o sotto un codice a barre).\n" +
         "- Descrizione: Estrai l'INTERA descrizione testuale, inclusi codici di revisione (REV), norme (STD) e specifiche tecniche. Non troncare il testo.\n" +
-        "- Lotto: Cerca il numero di lotto o batch. Se non c'è l'etichetta esplicita 'Lotto', cerca numeri isolati in alto, vicino a codici a barre secondari o date di produzione (es. numeri di 6-10 cifre).\n" +
+        "- Lotto: Cerca il numero di lotto o batch. DEVE ESSERE UN NUMERO DI ESATTAMENTE 6 CIFRE (es. 250173, 250258). Cerca numeri isolati di 6 cifre in alto, vicino a codici a barre secondari o date di produzione. Se non trovi un numero di 6 cifre, restituisci una stringa vuota.\n" +
         "- Quantità: Estrai solo il valore numerico (es. da '500,00 PZ' estrai 500).\n\n" +
-        "Sii estremamente preciso. Se un campo è assente, usa una stringa vuota (o 1 per quantità)."
+        "Sii estremamente preciso. Se un campo è assente o illeggibile, usa una stringa vuota (o 1 per quantità). Non inventare dati."
       ],
       config: {
         responseMimeType: "application/json",

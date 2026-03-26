@@ -306,6 +306,9 @@ export default function InventoryForm({ initialData, onReset, sessionId }: Inven
                 className="input-field pr-12"
                 placeholder="Es. 250010"
                 required
+                pattern="\d{6}"
+                maxLength={6}
+                title="Il lotto deve essere composto da esattamente 6 numeri"
               />
               {formData.lotto && (
                 <button

@@ -188,13 +188,13 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
       
       if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError' || lowerError.includes('not allowed') || lowerError.includes('permission denied')) {
         setError("Accesso alla fotocamera negato. Prova ad aprire l'app in una NUOVA SCHEDA per concedere i permessi.");
-      } else if (err?.name === 'NotFoundError' || lowerError.includes('requested device not found') || lowerError.includes('notfounderror')) {
+      } else if (err?.name === 'NotFoundError' || err?.name === 'OverconstrainedError' || lowerError.includes('device not found') || lowerError.includes('notfounderror') || lowerError.includes('overconstrainederror')) {
         setError("Nessuna fotocamera trovata. Assicurati che il dispositivo abbia una fotocamera funzionante.");
       } else if (lowerError.includes('already under transition')) {
         // This is often transient, we don't want to block the UI with a hard error
         console.warn("Scanner was in transition, likely handled by isBusyRef");
       } else {
-        setError("Impossibile avviare lo scanner. Assicurati di aver concesso i permessi per la fotocamera.");
+        setError(`Impossibile avviare lo scanner: ${errorMessage || 'Assicurati di aver concesso i permessi per la fotocamera.'}`);
       }
       setIsStarting(false);
     } finally {
