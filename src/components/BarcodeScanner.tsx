@@ -4,7 +4,7 @@ import { X, Loader2, Check, Barcode, Hash } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
-import { ExtractedData } from '@/services/ocrService';
+import { ExtractedData } from '../services/ocrService';
 
 interface BarcodeScannerProps {
   onScan: (data: ExtractedData) => void;
@@ -60,7 +60,7 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
     stateRef.current = { target, codice, lotto };
   }, [target, codice, lotto]);
 
-  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [devices, setDevices] = useState<any[]>([]);
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
 
   const startScanner = async (cameraIndex?: number) => {

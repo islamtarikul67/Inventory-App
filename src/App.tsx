@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import Scanner from '@/components/Scanner';
-import InventoryForm from '@/components/InventoryForm';
-import InventoryList from '@/components/InventoryList';
-import Auth from '@/components/Auth';
-import SessionSelector from '@/components/SessionSelector';
-import ProfileModal from '@/components/ProfileModal';
-import ProfileImage from '@/components/ProfileImage';
-import { extractDataFromImage, ExtractedData } from '@/services/ocrService';
-import { supabase } from '@/supabaseClient.ts';
+import Scanner from './components/Scanner';
+import InventoryForm from './components/InventoryForm';
+import InventoryList from './components/InventoryList';
+import Auth from './components/Auth';
+import SessionSelector from './components/SessionSelector';
+import ProfileModal from './components/ProfileModal';
+import ProfileImage from './components/ProfileImage';
+import { extractDataFromImage, ExtractedData } from './services/ocrService';
+import { supabase } from './supabaseClient';
 import { Session } from '@supabase/supabase-js';
-import { InventorySession } from '@/types';
+import { InventorySession } from './types';
 import { PackageSearch, Loader2, List, Camera, LogOut, WifiOff, AlertTriangle, User } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
-import { syncService } from '@/services/syncService';
+import { syncService } from './services/syncService';
 import { motion, AnimatePresence } from 'motion/react';
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
@@ -177,12 +177,12 @@ export default function App() {
     await supabase.auth.signOut();
   };
 
-  const handleCapture = async (base64Image: string, mimeType: string) => {
+  const handleCapture = async (base64Image: string, mimeType: string, isSmart: boolean = false) => {
     setAppState('processing');
     setError('');
     
     try {
-      const data = await extractDataFromImage(base64Image, mimeType);
+      const data = await extractDataFromImage(base64Image, mimeType, isSmart);
       setExtractedData(data);
       setAppState('editing');
     } catch (err: any) {
@@ -209,8 +209,12 @@ export default function App() {
     setError('');
   };
 
-  const handleBarcodeScan = (data: ExtractedData) => {
-    setExtractedData(data);
+  const handleBarcodeScan = (data: { codice: string, lotto: string }) => {
+    setExtractedData({
+      codice: data.codice,
+      descrizione: '',
+      lotto: data.lotto
+    });
     setAppState('editing');
     setError('');
   };
@@ -388,17 +392,17 @@ export default function App() {
                     </motion.div>
                   )}
                   
-                  <div className="text-center mb-12 sm:mb-16">
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
+                  <div className="text-center mb-8 sm:mb-12">
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 bg-indigo-50/50 backdrop-blur-md text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-[0.25em] border border-indigo-100/50 shadow-sm"
+                      className="inline-flex items-center gap-2 px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-100 mb-6"
                     >
-                      <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
-                      Smart Acquisition
+                      <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse"></div>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">Smart Acquisition</span>
                     </motion.div>
                     <h2 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight mb-4">Data Acquisition</h2>
-                    <p className="text-sm sm:text-lg text-slate-500 max-w-sm mx-auto font-medium leading-relaxed opacity-80">
+                    <p className="text-sm sm:text-base text-slate-500 max-w-sm mx-auto leading-relaxed">
                       Digitalizza il tuo magazzino con strumenti di precisione alimentati dall'intelligenza artificiale.
                     </p>
                   </div>

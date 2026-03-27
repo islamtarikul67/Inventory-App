@@ -1,22 +1,10 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { supabase } from '@/supabaseClient';
-import { Loader2, AlertCircle, RefreshCw, Database, PackageOpen, Pencil, Trash2, Check, X, AlertTriangle, Download, ChevronLeft, ChevronRight, Search, FileSpreadsheet, FileText } from 'lucide-react';
-import toast from 'react-hot-toast';
+import React, { useEffect, useState } from 'react';
+import { supabase } from '../supabaseClient';
+import { InventoryItem } from '../types';
+import { Loader2, Trash2, Search, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import JsBarcode from 'jsbarcode';
-
-interface InventoryItem {
-  id: number;
-  codice: string;
-  descrizione: string;
-  lotto: string;
-  quantita: number;
-  created_at: string;
-  sessione_id: string | null;
-}
 
 interface InventoryListProps {
   sessionId: string | null;
@@ -25,1092 +13,133 @@ interface InventoryListProps {
 export default function InventoryList({ sessionId }: InventoryListProps) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editFormData, setEditFormData] = useState<Partial<InventoryItem>>({});
-  
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 20;
-  const [totalCount, setTotalCount] = useState(0);
-
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
-
-  const searchPlaceholders = [
-    "Cerca per codice...",
-    "Cerca per descrizione...",
-    "Cerca per lotto...",
-    "Cerca per codice, descrizione o lotto..."
-  ];
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setPlaceholderIndex((prev) => (prev + 1) % searchPlaceholders.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+    fetchItems();
+  }, [sessionId]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-      setCurrentPage(1);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+  const fetchItems = async () => {
+    if (!sessionId) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
 
-  const fetchInventory = async () => {
     setLoading(true);
-    setError('');
     try {
-      const from = (currentPage - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-
-      let query = supabase
+      const { data, error } = await supabase
         .from('inventario')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(from, to);
-      
-      if (sessionId) {
-        query = query.eq('sessione_id', sessionId);
-      } else {
-        query = query.is('sessione_id', null);
-      }
+        .select('*')
+        .eq('sessione_id', sessionId)
+        .order('created_at', { ascending: false });
 
-      if (debouncedSearchTerm.trim()) {
-        const search = `%${debouncedSearchTerm.trim()}%`;
-        query = query.or(`codice.ilike.${search},descrizione.ilike.${search},lotto.ilike.${search}`);
-      }
-      
-      const { data, error, count } = await query;
-      
       if (error) throw error;
       setItems(data || []);
-      setTotalCount(count || 0);
     } catch (err: any) {
-      console.error('Errore nel recupero dati:', err);
-      setError(err.message || 'Impossibile caricare l\'inventario.');
+      console.error('Errore durante il caricamento:', err);
+      toast.error('Errore nel caricamento dei dati');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchInventory();
-  }, [sessionId, currentPage, debouncedSearchTerm]);
+  const handleDelete = async (id: string) => {
+    if (!confirm('Sei sicuro di voler eliminare questo articolo?')) return;
 
-  const handleEditClick = (item: InventoryItem) => {
-    setEditingId(item.id);
-    setEditFormData(item);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditFormData({});
-  };
-
-  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
-    setEditFormData(prev => ({
-      ...prev,
-      [name]: type === 'number' ? Number(value) : value
-    }));
-  };
-
-  const handleSaveEdit = async (id: number) => {
-    setActionLoading(true);
     try {
-      const { error } = await supabase
-        .from('inventario')
-        .update({
-          codice: editFormData.codice,
-          descrizione: editFormData.descrizione,
-          lotto: editFormData.lotto,
-          quantita: editFormData.quantita,
-          note: editFormData.note
-        })
-        .eq('id', id);
-
+      const { error } = await supabase.from('inventario').delete().eq('id', id);
       if (error) throw error;
-
-      setItems(items.map(item => item.id === id ? { ...item, ...editFormData } as InventoryItem : item));
-      setEditingId(null);
-      toast.success('Articolo modificato!');
+      setItems(items.filter(item => item.id !== id));
+      toast.success('Articolo eliminato');
     } catch (err: any) {
-      console.error('Errore durante la modifica:', err);
-      toast.error(err.message || 'Impossibile modificare l\'articolo.');
-    } finally {
-      setActionLoading(false);
+      toast.error('Errore durante l\'eliminazione');
     }
   };
 
-  const handleDeleteClick = (id: number) => {
-    setDeleteConfirmId(id);
+  const exportToExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(items);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Inventario");
+    XLSX.writeFile(workbook, `inventario_${sessionId}.xlsx`);
   };
 
-  const handleCancelDelete = () => {
-    setDeleteConfirmId(null);
-  };
+  const filteredItems = items.filter(item => 
+    item.codice.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.descrizione.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.lotto.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const handleConfirmDelete = async () => {
-    if (deleteConfirmId === null) return;
-    setActionLoading(true);
-    try {
-      const { error } = await supabase
-        .from('inventario')
-        .delete()
-        .eq('id', deleteConfirmId);
-
-      if (error) throw error;
-
-      setItems(items.filter(item => item.id !== deleteConfirmId));
-      setDeleteConfirmId(null);
-      toast.success('Articolo eliminato!');
-    } catch (err: any) {
-      console.error('Errore durante l\'eliminazione:', err);
-      toast.error(err.message || 'Impossibile eliminare l\'articolo.');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const exportToHTML = async () => {
-    setActionLoading(true);
-    try {
-      // 1. Identificazione Cliente
-      const match = debouncedSearchTerm.match(/^(\d{3})-/);
-      const clientId = match ? match[1] : null;
-
-      let query = supabase
-        .from('inventario')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (sessionId) {
-        query = query.eq('sessione_id', sessionId);
-      } else {
-        query = query.is('sessione_id', null);
-      }
-
-      // 2. Applicazione filtro di ricerca corrente
-      if (debouncedSearchTerm.trim()) {
-        const search = `%${debouncedSearchTerm.trim()}%`;
-        query = query.or(`codice.ilike.${search},descrizione.ilike.${search},lotto.ilike.${search}`);
-      }
-
-      const { data: exportItems, error } = await query;
-      if (error) throw error;
-
-      if (!exportItems || exportItems.length === 0) {
-        toast.error('Nessun dato da esportare');
-        return;
-      }
-
-      // 3. Calcolo Sommario
-      const totalRows = exportItems.length;
-      const totalQty = exportItems.reduce((sum, item) => sum + item.quantita, 0);
-
-      const htmlContent = `
-<!DOCTYPE html>
-<html lang="it">
-<head>
-  <meta charset="UTF-8">
-  <title>Report Inventario ${clientId ? `- Cliente ${clientId}` : ''}</title>
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  <style>
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 20px; color: #000; background: #fff; }
-    @page { size: A4 landscape; margin: 10mm; }
-    h1 { text-align: center; font-size: 18px; text-transform: uppercase; margin-bottom: 5px; }
-    h2 { text-align: center; font-size: 14px; margin-bottom: 20px; color: #555; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }
-    th, td { border: 1px solid #000; padding: 6px 4px; vertical-align: middle; line-height: 1.2; }
-    th { background-color: #f0f0f0; font-weight: bold; text-transform: uppercase; font-size: 9px; text-align: center; }
-    
-    /* Column Widths for Landscape */
-    th:nth-child(1) { width: 3%; }  /* N. */
-    th:nth-child(2) { width: 45%; } /* CODICE - Aumentato per barcode lunghi */
-    th:nth-child(3) { width: 20%; } /* DESCRIZIONE - Ridotto per far spazio */
-    th:nth-child(4) { width: 18%; } /* LOTTO BARCODE */
-    th:nth-child(5) { width: 7%; }  /* NOTE */
-    th:nth-child(6) { width: 7%; }  /* QUANTITÀ */
-    
-    .barcode-cell { text-align: center; padding: 4px 2px; overflow: hidden; }
-    .barcode-svg { height: auto; display: block; margin: 0 auto; max-width: 100%; }
-    .desc-cell { font-size: 9px; word-wrap: break-word; overflow-wrap: break-word; }
-    .note-cell { font-size: 8px; text-align: center; }
-    .qty-cell { text-align: right; font-weight: bold; font-size: 11px; }
-    
-    .summary { font-size: 12px; font-weight: bold; margin-top: 10px; border-top: 2px solid #000; padding-top: 10px; }
-    
-    @media print {
-      .no-print { display: none !important; }
-      table { page-break-inside: auto; }
-      tr { page-break-inside: avoid; }
-    }
-  </style>
-</head>
-<body>
-  <h1>Report Inventario ${clientId ? `Cliente: ${clientId}` : ''}</h1>
-  ${clientId ? `<h2>Filtro attivo: ${debouncedSearchTerm}</h2>` : ''}
-  <table>
-    <thead>
-      <tr>
-        <th>N.</th>
-        <th>Codice</th>
-        <th>Descrizione</th>
-        <th>Lotto Barcode</th>
-        <th>Note</th>
-        <th>Quantità</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${exportItems.map((item, index) => `
-        <tr>
-          <td class="note-cell">${exportItems.length - index}</td>
-          <td class="barcode-cell">
-            <svg class="barcode-svg codice-barcode" data-value="${item.codice}"></svg>
-          </td>
-          <td class="desc-cell">${item.descrizione}</td>
-          <td class="barcode-cell">
-            <svg class="barcode-svg lotto-barcode" data-value="${item.lotto}"></svg>
-          </td>
-          <td class="note-cell">${item.note || ''}</td>
-          <td class="qty-cell">${item.quantita}</td>
-        </tr>
-      `).join('')}
-    </tbody>
-  </table>
-  <script>
-    // Generate Barcodes
-    document.querySelectorAll('.barcode-svg').forEach(svg => {
-      const value = svg.getAttribute('data-value');
-      if (value) {
-        try {
-          JsBarcode(svg, value, { 
-            format: "CODE128", 
-            width: 1.0, 
-            height: 25, 
-            displayValue: true, 
-            fontSize: 8, 
-            margin: 0, 
-            textMargin: 1 
-          });
-        } catch (e) { svg.outerHTML = "<span style='font-size: 8px;'>" + value + "</span>"; }
-      }
-    });
-    setTimeout(() => { window.print(); }, 800);
-  </script>
-</body>
-</html>
-    `;
-
-    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `inventario_stampa_${new Date().toISOString().split('T')[0]}.html`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    } catch (err: any) {
-      console.error('Errore esportazione:', err);
-      toast.error('Errore durante l\'esportazione');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const exportToPDF = async () => {
-    setActionLoading(true);
-    try {
-      // 1. Identificazione Cliente
-      const match = debouncedSearchTerm.match(/^(\d{3})-/);
-      const clientId = match ? match[1] : null;
-
-      let query = supabase
-        .from('inventario')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (sessionId) {
-        query = query.eq('sessione_id', sessionId);
-      } else {
-        query = query.is('sessione_id', null);
-      }
-
-      // 2. Applicazione filtro di ricerca corrente
-      if (debouncedSearchTerm.trim()) {
-        const search = `%${debouncedSearchTerm.trim()}%`;
-        query = query.or(`codice.ilike.${search},descrizione.ilike.${search},lotto.ilike.${search}`);
-      }
-
-      const { data: exportItems, error } = await query;
-      if (error) throw error;
-
-      if (!exportItems || exportItems.length === 0) {
-        toast.error('Nessun dato da esportare');
-        return;
-      }
-
-      const doc = new jsPDF('landscape', 'mm', 'a4');
-      
-      doc.setFontSize(18);
-      doc.text(`Report Inventario ${clientId ? `- Cliente ${clientId}` : ''}`, 14, 15);
-      
-      if (clientId) {
-        doc.setFontSize(12);
-        doc.setTextColor(100);
-        doc.text(`Filtro attivo: ${debouncedSearchTerm}`, 14, 22);
-      }
-
-      // Helper function to generate barcode vector data for perfect sharpness
-      const getBarcodeVectorData = (text: string) => {
-        if (!text) return null;
-        try {
-          const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-          JsBarcode(svg, text, {
-            format: "CODE128",
-            displayValue: false,
-            margin: 0,
-            background: "transparent",
-            width: 1,
-            height: 10
-          });
-          
-          const viewBox = svg.getAttribute('viewBox');
-          let totalWidth = 0;
-          if (viewBox) {
-            totalWidth = parseFloat(viewBox.split(' ')[2]);
-          } else {
-            totalWidth = text.length * 11 + 35;
-          }
-          
-          const rects = svg.querySelectorAll('rect');
-          const bars: {x: number, width: number}[] = [];
-          
-          rects.forEach(rect => {
-            const x = parseFloat(rect.getAttribute('x') || '0');
-            const width = parseFloat(rect.getAttribute('width') || '0');
-            
-            // Escludiamo il rect di background (che è largo quanto tutto l'SVG)
-            if (width > 0 && width < totalWidth * 0.5) {
-              bars.push({ x, width });
-            }
-          });
-          
-          if (bars.length === 0) return null;
-          
-          // Ricalcoliamo la larghezza totale esatta basata sull'ultima barra
-          const maxBarX = Math.max(...bars.map(b => b.x + b.width));
-          totalWidth = maxBarX;
-          
-          return { bars, totalWidth };
-        } catch (e) {
-          return null;
-        }
-      };
-
-      const tableData = exportItems.map((item, index) => {
-        const codiceBarcode = getBarcodeVectorData(item.codice);
-        const lottoBarcode = getBarcodeVectorData(item.lotto);
-        
-        return [
-          (exportItems.length - index).toString(),
-          { content: codiceBarcode ? '' : item.codice, barcode: codiceBarcode, text: item.codice },
-          item.descrizione,
-          { content: lottoBarcode ? '' : item.lotto, barcode: lottoBarcode, text: item.lotto },
-          item.note || '',
-          item.quantita.toString()
-        ];
-      });
-
-      autoTable(doc, {
-        startY: clientId ? 28 : 22,
-        head: [['N.', 'Codice', 'Descrizione', 'Lotto Barcode', 'Note', 'Q.tà']],
-        body: tableData,
-        rowPageBreak: 'avoid',
-        styles: { 
-          fontSize: 9, 
-          valign: 'middle', 
-          cellPadding: 4, 
-          textColor: [0, 0, 0],
-          lineColor: [200, 200, 200],
-          lineWidth: 0.1,
-          overflow: 'linebreak'
-        },
-        headStyles: { 
-          fillColor: [240, 240, 240], 
-          textColor: [0, 0, 0], 
-          fontStyle: 'bold', 
-          halign: 'center',
-          overflow: 'visible' // Evita che le intestazioni vadano a capo
-        },
-        columnStyles: {
-          0: { cellWidth: 12, halign: 'center', overflow: 'visible' }, // Aumentata larghezza e rimosso wrapping per N.
-          1: { cellWidth: 80, halign: 'center' }, // Aumentata larghezza per Codice
-          2: { cellWidth: 'auto' },
-          3: { cellWidth: 60, halign: 'center' }, // Ridotta leggermente per bilanciare
-          4: { cellWidth: 25 },
-          5: { cellWidth: 15, halign: 'center', fontStyle: 'bold' }
-        },
-        didParseCell: (data) => {
-          if (data.section === 'body' && (data.column.index === 1 || data.column.index === 3)) {
-            data.cell.styles.minCellHeight = 24; // Aumentata altezza per maggiore respiro
-          }
-        },
-        didDrawCell: (data) => {
-          if (data.section === 'body' && (data.column.index === 1 || data.column.index === 3)) {
-            const cellData = data.cell.raw as any;
-            if (cellData && cellData.barcode) {
-              const vectorData = cellData.barcode;
-              
-              const paddingX = 5; // Quiet zone aumentata
-              const textHeight = 4;
-              const barHeight = 14; // Altezza barre aumentata per migliore scansione
-              const contentHeight = barHeight + textHeight;
-              
-              const availableWidth = data.cell.width - (paddingX * 2);
-              
-              // Spessore barra standard (module width) aumentato per leggibilità
-              const standardScale = 0.5; 
-              let scale = standardScale;
-              let targetWidth = vectorData.totalWidth * scale;
-              
-              // Se il barcode è troppo largo, ridimensionalo ma mantieni lo spessore massimo possibile
-              if (targetWidth > availableWidth) {
-                scale = availableWidth / vectorData.totalWidth;
-                targetWidth = availableWidth;
-              }
-              
-              // Centratura perfetta nella colonna
-              const startX = data.cell.x + (data.cell.width - targetWidth) / 2;
-              const startY = data.cell.y + (data.cell.height - contentHeight) / 2;
-              
-              // Disegna le barre vettoriali (Nero puro su Bianco)
-              doc.setFillColor(0, 0, 0);
-              vectorData.bars.forEach((bar: any) => {
-                doc.rect(
-                  startX + (bar.x * scale), 
-                  startY, 
-                  bar.width * scale, 
-                  barHeight, 
-                  'F'
-                );
-              });
-              
-              // Disegna il testo centrato sotto il barcode usando Courier (monospaced)
-              doc.setFont('courier', 'normal');
-              doc.setFontSize(8.5); // Leggermente più grande
-              doc.setTextColor(0, 0, 0);
-              doc.text(
-                cellData.text, 
-                data.cell.x + data.cell.width / 2, 
-                startY + barHeight + 4, 
-                { align: 'center' }
-              );
-              
-              // Ripristina il font predefinito per le altre celle
-              doc.setFont('helvetica', 'normal');
-            }
-          }
-        }
-      });
-
-      doc.save(`inventario_stampa_${new Date().toISOString().split('T')[0]}.pdf`);
-      toast.success('PDF generato con successo');
-    } catch (err: any) {
-      console.error('Errore esportazione PDF:', err);
-      toast.error('Errore durante l\'esportazione PDF');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const exportToExcel = async () => {
-    setActionLoading(true);
-    try {
-      let query = supabase
-        .from('inventario')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (sessionId) {
-        query = query.eq('sessione_id', sessionId);
-      } else {
-        query = query.is('sessione_id', null);
-      }
-
-      // Applicazione filtro di ricerca corrente
-      if (debouncedSearchTerm.trim()) {
-        const search = `%${debouncedSearchTerm.trim()}%`;
-        query = query.or(`codice.ilike.${search},descrizione.ilike.${search},lotto.ilike.${search}`);
-      }
-
-      const { data: exportItems, error } = await query;
-      if (error) throw error;
-
-      if (!exportItems || exportItems.length === 0) {
-        toast.error('Nessun dato da esportare');
-        return;
-      }
-
-      // Prepara i dati per Excel (senza barcode, solo testo)
-      const data = exportItems.map((item, index) => ({
-        'N.': exportItems.length - index,
-        'Codice': item.codice,
-        'Descrizione': item.descrizione,
-        'Lotto': item.lotto,
-        'Note': item.note || '',
-        'Quantità': item.quantita,
-        'Data Creazione': new Date(item.created_at).toLocaleString('it-IT')
-      }));
-
-      const worksheet = XLSX.utils.json_to_sheet(data);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Inventario");
-
-      // Imposta larghezza colonne
-      const wscols = [
-        { wch: 5 },  // N.
-        { wch: 20 }, // Codice
-        { wch: 40 }, // Descrizione
-        { wch: 15 }, // Lotto
-        { wch: 20 }, // Note
-        { wch: 10 }, // Quantità
-        { wch: 20 }  // Data
-      ];
-      worksheet['!cols'] = wscols;
-
-      XLSX.writeFile(workbook, `inventario_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('File Excel generato con successo!');
-    } catch (err: any) {
-      console.error('Errore esportazione Excel:', err);
-      toast.error('Errore durante l\'esportazione Excel');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
-  const currentItems = items;
-
-  useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    } else if (totalPages > 0 && currentPage === 0) {
-      setCurrentPage(1);
-    }
-  }, [totalCount, currentPage, totalPages]);
-
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 5;
-    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-    let end = Math.min(totalPages, start + maxVisible - 1);
-
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1);
-    }
-
-    for (let i = start; i <= end; i++) {
-      pages.push(i);
-    }
-    return pages;
-  };
+  if (loading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-5xl mx-auto bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden relative"
-    >
-      <div className="p-5 sm:p-8 border-b border-slate-50 bg-slate-50/30 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 sm:gap-6">
-        <div>
-          <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2 sm:gap-3 tracking-tight">
-            <Database className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
-            Inventario
-          </h2>
-          <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Gestione articoli scansionati</p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
+        <div className="relative w-full sm:max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <input 
+            type="text" 
+            placeholder="Cerca per codice, descrizione o lotto..." 
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 outline-none font-medium"
+          />
         </div>
-        
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full lg:w-auto">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-slate-100 rounded-xl sm:rounded-2xl shadow-sm">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Righe:</span>
-            <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{totalCount}</span>
-          </div>
-          <div className="relative flex-grow">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-400" />
-            </div>
-            <input
-              type="text"
-              placeholder={searchPlaceholders[placeholderIndex]}
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="block w-full pl-10 pr-4 py-2.5 sm:py-3 border-2 border-slate-100 rounded-xl sm:rounded-2xl bg-white font-bold text-slate-700 placeholder:text-slate-300 focus:border-indigo-500 focus:ring-0 transition-all text-xs sm:text-sm"
-            />
-          </div>
-          
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button 
-              onClick={exportToHTML}
-              disabled={loading || actionLoading || items.length === 0}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 text-[10px] font-black uppercase tracking-widest text-slate-700 bg-white border-2 border-slate-100 rounded-xl sm:rounded-2xl hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
-              title="Esporta in HTML per stampa con Barcode"
-            >
-              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Stampa</span>
-            </button>
-            <button 
-              onClick={exportToPDF}
-              disabled={loading || actionLoading || items.length === 0}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 text-[10px] font-black uppercase tracking-widest text-white bg-red-500 border-2 border-red-500 rounded-xl sm:rounded-2xl hover:bg-red-600 transition-all shadow-md shadow-red-100 disabled:opacity-50"
-              title="Esporta in PDF con Barcode"
-            >
-              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">PDF</span>
-            </button>
-            <button 
-              onClick={exportToExcel}
-              disabled={loading || actionLoading || items.length === 0}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 text-[10px] font-black uppercase tracking-widest text-white bg-indigo-600 border-2 border-indigo-600 rounded-xl sm:rounded-2xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 disabled:opacity-50"
-              title="Esporta in Excel senza Barcode"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Excel</span>
-            </button>
-            <button 
-              onClick={fetchInventory}
-              disabled={loading || actionLoading}
-              className="p-2.5 sm:p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl sm:rounded-2xl transition-all border-2 border-transparent"
-            >
-              <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-        </div>
+        <button 
+          onClick={exportToExcel}
+          disabled={items.length === 0}
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-700 transition-colors disabled:opacity-50"
+        >
+          <Download className="w-4 h-4" /> Esporta Excel
+        </button>
       </div>
 
-      <AnimatePresence>
-        {error && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mx-8 mt-6 p-4 bg-rose-50 text-rose-600 rounded-2xl flex items-start text-xs font-bold border border-rose-100"
-          >
-            <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
-            <span>{error}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="overflow-x-auto">
-        <AnimatePresence mode="wait">
-          {loading && items.length === 0 ? (
+      <div className="grid gap-4">
+        <AnimatePresence mode="popLayout">
+          {filteredItems.map(item => (
             <motion.div 
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center p-20 text-slate-400"
-            >
-              <Loader2 className="w-12 h-12 animate-spin text-indigo-600 mb-6" />
-              <p className="font-bold uppercase tracking-widest text-xs">Caricamento dati...</p>
-            </motion.div>
-          ) : items.length === 0 ? (
-            <motion.div 
-              key="empty"
+              key={item.id}
+              layout
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center p-20 text-slate-400"
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex justify-between items-center"
             >
-              <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-8">
-                <PackageOpen className="w-12 h-12 text-slate-200" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-1">
+                  <span className="text-sm font-black text-slate-900">{item.codice}</span>
+                  <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wider">Lotto: {item.lotto}</span>
+                </div>
+                <p className="text-xs text-slate-500 font-medium truncate">{item.descrizione}</p>
               </div>
-              <p className="text-xl font-black text-slate-900 tracking-tight">Inventario Vuoto</p>
-              <p className="text-sm font-medium mt-2">Inizia a scansionare per vedere qui i tuoi articoli.</p>
-            </motion.div>
-          ) : (
-            <motion.div 
-              key="content"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <div className="hidden md:block px-6 pb-6">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b-2 border-slate-100">
-                      <th className="px-4 py-4 w-[5%] text-center">#</th>
-                      <th className="px-4 py-4 w-[20%]">Codice</th>
-                      <th className="px-4 py-4 w-[30%]">Descrizione</th>
-                      <th className="px-4 py-4 w-[15%]">Lotto</th>
-                      <th className="px-4 py-4 w-[10%]">Note</th>
-                      <th className="px-4 py-4 text-center w-[10%]">Quantità</th>
-                      <th className="px-4 py-4 text-right w-[10%]">Azioni</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    <AnimatePresence initial={false}>
-                      {currentItems.map((item, index) => (
-                        <motion.tr 
-                          key={item.id} 
-                          layout
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, x: -20 }}
-                          className={`group transition-all duration-200 ${editingId === item.id ? 'bg-indigo-50/80 ring-1 ring-indigo-200' : index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} hover:bg-slate-100/80`}
-                        >
-                          {editingId === item.id ? (
-                            <>
-                              <td className="px-4 py-3 text-center">
-                                <span className="text-xs font-bold text-slate-400">{totalCount - ((currentPage - 1) * ITEMS_PER_PAGE + index)}</span>
-                              </td>
-                              <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
-                                  name="codice" 
-                                  value={editFormData.codice || ''} 
-                                  onChange={handleEditChange} 
-                                  className="w-full px-3 py-2 text-sm font-semibold border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white shadow-sm transition-all"
-                                />
-                              </td>
-                              <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
-                                  name="descrizione" 
-                                  value={editFormData.descrizione || ''} 
-                                  onChange={handleEditChange} 
-                                  className="w-full px-3 py-2 text-sm font-semibold border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white shadow-sm transition-all"
-                                />
-                              </td>
-                              <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
-                                  name="lotto" 
-                                  value={editFormData.lotto || ''} 
-                                  onChange={handleEditChange} 
-                                  className="w-full px-3 py-2 text-sm font-semibold border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white shadow-sm transition-all"
-                                />
-                              </td>
-                              <td className="px-4 py-3">
-                                <input 
-                                  type="text" 
-                                  name="note" 
-                                  value={editFormData.note || ''} 
-                                  onChange={handleEditChange} 
-                                  className="w-full px-3 py-2 text-sm font-semibold border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white shadow-sm transition-all"
-                                  placeholder="Note..."
-                                />
-                              </td>
-                              <td className="px-4 py-3">
-                                <input 
-                                  type="number" 
-                                  name="quantita" 
-                                  value={editFormData.quantita || 0} 
-                                  onChange={handleEditChange} 
-                                  className="w-full px-3 py-2 text-sm font-semibold border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none bg-white shadow-sm text-center transition-all"
-                                />
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                <div className="flex justify-end gap-2">
-                                  <button 
-                                    onClick={() => handleSaveEdit(item.id)} 
-                                    disabled={actionLoading}
-                                    className="p-2 text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors shadow-sm"
-                                  >
-                                    {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                                  </button>
-                                  <button 
-                                    onClick={handleCancelEdit} 
-                                    disabled={actionLoading}
-                                    className="p-2 text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors shadow-sm"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </>
-                          ) : (
-                            <>
-                              <td className="px-4 py-4 text-center">
-                                <span className="text-xs font-bold text-slate-400">{totalCount - ((currentPage - 1) * ITEMS_PER_PAGE + index)}</span>
-                              </td>
-                              <td className="px-4 py-4">
-                                <span className="text-sm font-bold text-slate-900">{item.codice}</span>
-                              </td>
-                              <td className="px-4 py-4">
-                                <span className="text-sm font-medium text-slate-600">{item.descrizione}</span>
-                              </td>
-                              <td className="px-4 py-4">
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest bg-slate-200/50 text-slate-600">
-                                  {item.lotto}
-                                </span>
-                              </td>
-                              <td className="px-4 py-4">
-                                <span className="text-xs font-medium text-slate-500">{item.note || '-'}</span>
-                              </td>
-                              <td className="px-4 py-4 text-center">
-                                <span className="text-base font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">{item.quantita}</span>
-                              </td>
-                              <td className="px-4 py-4 text-right">
-                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                  <button 
-                                    onClick={() => handleEditClick(item)} 
-                                    className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors" 
-                                  >
-                                    <Pencil className="w-4 h-4" />
-                                  </button>
-                                  <button 
-                                    onClick={() => handleDeleteClick(item.id)} 
-                                    className="p-2 text-rose-500 hover:bg-rose-100 rounded-lg transition-colors" 
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </>
-                          )}
-                        </motion.tr>
-                      ))}
-                    </AnimatePresence>
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="md:hidden flex flex-col p-4 sm:p-6 gap-4 bg-slate-50/30">
-                <AnimatePresence initial={false}>
-                  {currentItems.map((item, index) => (
-                    <motion.div 
-                      key={item.id} 
-                      layout
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      className={`p-5 sm:p-6 rounded-[1.5rem] sm:rounded-3xl border-2 transition-all duration-300 shadow-sm ${editingId === item.id ? 'bg-indigo-50/50 border-indigo-200' : 'bg-white border-slate-100 hover:border-indigo-100'}`}
-                    >
-                      {editingId === item.id ? (
-                        <div className="space-y-4">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Codice</label>
-                            <input 
-                              type="text" 
-                              name="codice" 
-                              value={editFormData.codice || ''} 
-                              onChange={handleEditChange} 
-                              className="w-full px-4 py-3 text-sm font-bold border-2 border-indigo-200 rounded-xl focus:ring-0 outline-none bg-white"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descrizione</label>
-                            <input 
-                              type="text" 
-                              name="descrizione" 
-                              value={editFormData.descrizione || ''} 
-                              onChange={handleEditChange} 
-                              className="w-full px-4 py-3 text-sm font-bold border-2 border-indigo-200 rounded-xl focus:ring-0 outline-none bg-white"
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lotto</label>
-                              <input 
-                                type="text" 
-                                name="lotto" 
-                                value={editFormData.lotto || ''} 
-                                onChange={handleEditChange} 
-                                className="w-full px-4 py-3 text-sm font-bold border-2 border-indigo-200 rounded-xl focus:ring-0 outline-none bg-white"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantità</label>
-                              <input 
-                                type="number" 
-                                name="quantita" 
-                                value={editFormData.quantita || 0} 
-                                onChange={handleEditChange} 
-                                className="w-full px-4 py-3 text-sm font-bold border-2 border-indigo-200 rounded-xl focus:ring-0 outline-none bg-white text-right"
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Note</label>
-                            <input 
-                              type="text" 
-                              name="note" 
-                              value={editFormData.note || ''} 
-                              onChange={handleEditChange} 
-                              className="w-full px-4 py-3 text-sm font-bold border-2 border-indigo-200 rounded-xl focus:ring-0 outline-none bg-white"
-                            />
-                          </div>
-                          <div className="flex justify-end gap-2 pt-4 border-t border-indigo-100/50 mt-4">
-                            <button 
-                              onClick={handleCancelEdit} 
-                              disabled={actionLoading}
-                              className="px-6 py-3 text-xs font-black uppercase tracking-widest text-slate-500 bg-white border-2 border-slate-100 rounded-xl transition-all"
-                            >
-                              Annulla
-                            </button>
-                            <button 
-                              onClick={() => handleSaveEdit(item.id)} 
-                              disabled={actionLoading}
-                              className="px-6 py-3 text-xs font-black uppercase tracking-widest text-white bg-emerald-500 rounded-xl transition-all shadow-lg shadow-emerald-100"
-                            >
-                              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salva'}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-start gap-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="font-black text-slate-900 text-lg tracking-tight break-words leading-tight">
-                                {item.codice}
-                              </div>
-                              <div className="text-xs font-bold text-slate-400 mt-1.5 leading-relaxed">
-                                {item.descrizione}
-                              </div>
-                            </div>
-                            <div className="flex-shrink-0 text-xl font-black text-indigo-600 tracking-tighter bg-indigo-50 px-3 py-1.5 rounded-xl">
-                              x{item.quantita}
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-end justify-between pt-3 border-t border-slate-50 gap-4">
-                            <div className="flex flex-col gap-2 flex-1 min-w-0">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 border border-slate-200/50 w-fit">
-                                Lotto: {item.lotto}
-                              </span>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {item.note && (
-                                  <span className="text-xs font-medium text-slate-500 truncate max-w-[120px] sm:max-w-[200px]">
-                                    Note: {item.note}
-                                  </span>
-                                )}
-                                <span className="flex items-center justify-center px-2 py-0.5 bg-slate-100 rounded-md text-[10px] font-black text-slate-400 w-fit flex-shrink-0">
-                                  #{totalCount - ((currentPage - 1) * ITEMS_PER_PAGE + index)}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex gap-1 flex-shrink-0">
-                              <button 
-                                onClick={() => handleEditClick(item)} 
-                                className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" 
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={() => handleDeleteClick(item.id)} 
-                                className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-all" 
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-8 py-6 border-t border-slate-50 bg-slate-50/30">
-          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 hidden sm:block">
-            Pagina <span className="text-slate-900">{currentPage}</span> di <span className="text-slate-900">{totalPages}</span>
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-end">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="p-2.5 rounded-xl text-slate-400 hover:bg-slate-200 disabled:opacity-30 transition-all"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            
-            <div className="flex items-center gap-1">
-              {getPageNumbers().map(page => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`min-w-[36px] h-9 flex items-center justify-center rounded-xl text-xs font-black transition-all ${
-                    currentPage === page 
-                      ? 'bg-slate-900 text-white shadow-lg' 
-                      : 'text-slate-500 hover:bg-slate-200'
-                  }`}
+              <div className="flex items-center gap-6 ml-4">
+                <div className="text-right">
+                  <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Quantità</span>
+                  <span className="text-lg font-black text-slate-900">{item.quantita}</span>
+                </div>
+                <button 
+                  onClick={() => handleDelete(item.id)}
+                  className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
                 >
-                  {page}
+                  <Trash2 className="w-5 h-5" />
                 </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="p-2.5 rounded-xl text-slate-400 hover:bg-slate-200 disabled:opacity-30 transition-all"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      <AnimatePresence>
-        {deleteConfirmId !== null && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-6"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white rounded-[2.5rem] p-10 max-w-sm w-full shadow-2xl border border-slate-100"
-            >
-              <div className="flex flex-col items-center text-center">
-                <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-6">
-                  <AlertTriangle className="w-10 h-10" />
-                </div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-4">Sei sicuro?</h3>
-                <p className="text-slate-500 mb-10 leading-relaxed font-medium">
-                  Questa azione eliminerà definitivamente l'articolo dall'inventario. Non potrai tornare indietro.
-                </p>
-                <div className="flex flex-col gap-3 w-full">
-                  <button
-                    onClick={handleConfirmDelete}
-                    disabled={actionLoading}
-                    className="w-full py-5 bg-rose-500 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-rose-600 transition-all shadow-xl shadow-rose-100 flex items-center justify-center"
-                  >
-                    {actionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sì, Elimina'}
-                  </button>
-                  <button
-                    onClick={handleCancelDelete}
-                    disabled={actionLoading}
-                    className="w-full py-5 bg-slate-100 text-slate-700 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-slate-200 transition-all"
-                  >
-                    Annulla
-                  </button>
-                </div>
               </div>
             </motion.div>
-          </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {filteredItems.length === 0 && (
+          <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+            <p className="text-slate-400 font-bold">Nessun articolo trovato</p>
+          </div>
         )}
-      </AnimatePresence>
-    </motion.div>
+      </div>
+    </div>
   );
 }

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { supabase, supabaseUrl, supabaseAnonKey } from '@/supabaseClient.ts';
-import { ExtractedData } from '@/services/ocrService';
+import { supabase, supabaseUrl, supabaseAnonKey } from '../supabaseClient';
+import { ExtractedData } from '../services/ocrService';
 import { CheckCircle2, AlertCircle, Loader2, Save, RotateCcw, WifiOff, CloudOff, Database, ArrowLeft, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { syncService } from '@/services/syncService';
+import { syncService } from '../services/syncService';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface InventoryFormProps {
@@ -17,6 +17,38 @@ export default function InventoryForm({ initialData, onReset, sessionId }: Inven
     ...initialData,
     quantitaInput: initialData.quantita !== undefined ? initialData.quantita : ''
   });
+  const [showSmartInsights, setShowSmartInsights] = useState(initialData.isSmartAnalysis);
+
+  const applyTranslation = () => {
+    if (formData.traduzione) {
+      setFormData(prev => ({
+        ...prev,
+        descrizione: formData.traduzione || prev.descrizione,
+        traduzione: undefined
+      }));
+      toast.success('Traduzione applicata!');
+    }
+  };
+
+  const applySmartData = () => {
+    let notes = formData.note || '';
+    if (formData.categoria) notes += `\nCategoria: ${formData.categoria}`;
+    if (formData.scadenza) notes += `\nScadenza: ${formData.scadenza}`;
+    if (formData.unita) notes += `\nUnità: ${formData.unita}`;
+    if (formData.pericolo) notes += `\nPericolo: ${formData.pericolo}`;
+    
+    setFormData(prev => ({
+      ...prev,
+      note: notes.trim(),
+      categoria: undefined,
+      scadenza: undefined,
+      unita: undefined,
+      pericolo: undefined
+    }));
+    setShowSmartInsights(false);
+    toast.success('Dati intelligenti aggiunti alle note!');
+  };
+
   const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error' | 'offline_saved'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -229,6 +261,81 @@ export default function InventoryForm({ initialData, onReset, sessionId }: Inven
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-5 sm:space-y-6">
+        {showSmartInsights && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="p-5 bg-indigo-50/50 border border-indigo-100 rounded-3xl space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-indigo-600 text-white rounded-lg flex items-center justify-center">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </div>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Analisi Smart AI</h4>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowSmartInsights(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {formData.categoria && (
+                <div className="p-3 bg-white rounded-2xl border border-indigo-50 shadow-sm">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">Categoria</span>
+                  <span className="text-xs font-bold text-slate-700">{formData.categoria}</span>
+                </div>
+              )}
+              {formData.scadenza && (
+                <div className="p-3 bg-white rounded-2xl border border-indigo-50 shadow-sm">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">Scadenza</span>
+                  <span className="text-xs font-bold text-slate-700">{formData.scadenza}</span>
+                </div>
+              )}
+              {formData.unita && (
+                <div className="p-3 bg-white rounded-2xl border border-indigo-50 shadow-sm">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">Unità</span>
+                  <span className="text-xs font-bold text-slate-700">{formData.unita}</span>
+                </div>
+              )}
+              {formData.pericolo && (
+                <div className="p-3 bg-rose-50 rounded-2xl border border-rose-100 shadow-sm">
+                  <span className="text-[8px] font-black text-rose-400 uppercase tracking-widest block mb-1">Pericolo</span>
+                  <span className="text-xs font-bold text-rose-700">{formData.pericolo}</span>
+                </div>
+              )}
+            </div>
+
+            {formData.traduzione && (
+              <div className="p-4 bg-white rounded-2xl border border-indigo-50 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Traduzione Suggerita</span>
+                  <button 
+                    type="button"
+                    onClick={applyTranslation}
+                    className="text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:underline"
+                  >
+                    Applica
+                  </button>
+                </div>
+                <p className="text-xs font-medium text-slate-600 italic leading-relaxed">"{formData.traduzione}"</p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={applySmartData}
+              className="w-full py-3 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100 active:scale-95 transition-all"
+            >
+              Unisci dati alle note
+            </button>
+          </motion.div>
+        )}
+
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label htmlFor="codice" className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">

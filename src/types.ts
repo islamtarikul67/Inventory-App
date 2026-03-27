@@ -17,3 +17,23 @@ export interface ScanResult {
     quantita: "ocr";
   };
 }
+
+export interface InventorySession {
+  id: string;
+  nome: string;
+  created_at: string;
+  user_id: string;
+  is_active: boolean;
+}
+
+export interface InventoryItem {
+  id: string;
+  codice: string;
+  descrizione: string;
+  lotto: string;
+  quantita: number;
+  sessione_id: string;
+  user_id: string;
+  created_at: string;
+  timestamp?: number;
+}

@@ -1,14 +1,12 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { Camera, Upload, X, PenLine, Barcode, RefreshCw, RotateCw, Zap } from 'lucide-react';
-import BarcodeScanner from '@/components/BarcodeScanner';
-import LiveOCRScanner from '@/components/LiveOCRScanner';
+import { Camera, Upload, X, PenLine, Barcode, RefreshCw, RotateCw, Zap, Bot } from 'lucide-react';
+import BarcodeScanner from './BarcodeScanner';
 import { motion, AnimatePresence } from 'motion/react';
-import { ExtractedData } from '@/services/ocrService';
 
 interface ScannerProps {
-  onCapture: (base64: string, mimeType: string) => void;
+  onCapture: (base64: string, mimeType: string, isSmart?: boolean) => void;
   onManualEntry: () => void;
-  onBarcodeScan: (data: ExtractedData) => void;
+  onBarcodeScan: (data: { codice: string, lotto: string }) => void;
 }
 
 export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: ScannerProps) {
@@ -17,7 +15,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
   const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState<string>('');
   const [isBarcodeMode, setIsBarcodeMode] = useState(false);
-  const [isLiveOCRMode, setIsLiveOCRMode] = useState(false);
+  const [isSmartMode, setIsSmartMode] = useState(false);
 
   // Keep streamRef in sync with stream state
   useEffect(() => {
@@ -207,7 +205,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
         
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8); 
         stopCamera();
-        onCapture(dataUrl, 'image/jpeg');
+        onCapture(dataUrl, 'image/jpeg', isSmartMode);
       }
     }
   };
@@ -248,7 +246,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
           ctx.filter = 'none';
           
           const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          onCapture(dataUrl, 'image/jpeg');
+          onCapture(dataUrl, 'image/jpeg', isSmartMode);
         }
       };
       img.src = objectUrl;
@@ -297,118 +295,90 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
               onClose={() => setIsBarcodeMode(false)} 
             />
           </motion.div>
-        ) : isLiveOCRMode ? (
-          <motion.div 
-            key="live-ocr-mode"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="w-full"
-          >
-            <LiveOCRScanner 
-              onScan={(data) => onBarcodeScan(data)} 
-              onClose={() => setIsLiveOCRMode(false)} 
-            />
-          </motion.div>
         ) : !stream ? (
           <motion.div 
             key="selection-mode"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full space-y-10"
+            className="flex flex-col gap-4 w-full"
           >
-            <div className="grid grid-cols-2 gap-5 sm:gap-8 w-full">
-              {/* Primary Action: OCR LIVE PRO */}
-              <motion.button
-                whileHover={{ y: -8, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setIsLiveOCRMode(true)}
-                className="col-span-2 group relative flex flex-col items-center justify-center p-10 sm:p-14 bg-indigo-600 rounded-[3rem] sm:rounded-[4rem] transition-all duration-500 shadow-[0_30px_60px_-12px_rgba(79,70,229,0.4)] hover:shadow-[0_40px_80px_-12px_rgba(79,70,229,0.5)] overflow-hidden border border-indigo-500/50 ambient-glow"
-              >
-                {/* Glassmorphic background overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/40 via-indigo-600/20 to-transparent pointer-events-none" />
-                
-                {/* Premium Badge */}
-                <div className="absolute top-6 right-8 bg-white/10 backdrop-blur-xl text-white px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.2em] border border-white/10 flex items-center gap-2 shadow-2xl">
-                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,1)]" />
-                  AI Powered
-                </div>
-                
-                <div className="relative z-10 flex flex-col items-center">
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white/10 backdrop-blur-2xl text-white rounded-[2rem] sm:rounded-[2.5rem] flex items-center justify-center mb-6 sm:mb-8 group-hover:scale-110 transition-all duration-500 shadow-2xl border border-white/20 group-hover:bg-white/20">
-                    <Zap className="w-10 h-10 sm:w-12 sm:h-12 fill-current drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" />
-                  </div>
-                  <h3 className="text-white font-black text-2xl sm:text-3xl uppercase tracking-[0.1em] mb-2 drop-shadow-sm">OCR LIVE PRO</h3>
-                  <p className="text-indigo-100 text-xs sm:text-sm font-medium opacity-70 tracking-wide">Scansione intelligente in tempo reale</p>
-                </div>
-
-                {/* Decorative ambient lighting */}
-                <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-indigo-400/20 rounded-full blur-[100px]" />
-                <div className="absolute -top-20 -left-20 w-64 h-64 bg-white/10 rounded-full blur-[100px]" />
-              </motion.button>
-
-              {/* Secondary Actions Grid */}
-              <motion.button
-                whileHover={{ y: -5, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => startCamera()}
-                className="group flex flex-col items-center justify-center p-8 sm:p-10 bg-white border border-slate-100 rounded-[2.5rem] sm:rounded-[3rem] transition-all duration-300 shadow-premium hover:shadow-premium-hover ambient-glow"
-              >
-                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-50 text-blue-600 rounded-2xl sm:rounded-3xl flex items-center justify-center mb-4 sm:mb-5 group-hover:scale-110 transition-all duration-300 shadow-sm border border-blue-100/50 group-hover:bg-blue-100/50">
-                  <Camera className="w-7 h-7 sm:w-8 sm:h-8" />
-                </div>
-                <span className="font-black text-slate-700 text-[10px] sm:text-xs uppercase tracking-[0.2em]">Label Photo</span>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ y: -5, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setIsBarcodeMode(true)}
-                className="group flex flex-col items-center justify-center p-8 sm:p-10 bg-white border border-slate-100 rounded-[2.5rem] sm:rounded-[3rem] transition-all duration-300 shadow-premium hover:shadow-premium-hover ambient-glow"
-              >
-                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-violet-50 text-violet-600 rounded-2xl sm:rounded-3xl flex items-center justify-center mb-4 sm:mb-5 group-hover:scale-110 transition-all duration-300 shadow-sm border border-violet-100/50 group-hover:bg-violet-100/50">
-                  <Barcode className="w-7 h-7 sm:w-8 sm:h-8" />
-                </div>
-                <span className="font-black text-slate-700 text-[10px] sm:text-xs uppercase tracking-[0.2em]">Barcode Scan</span>
-              </motion.button>
+            {/* Main OCR LIVE PRO Button */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                setIsSmartMode(true);
+                startCamera();
+              }}
+              className="relative w-full aspect-[16/10] bg-gradient-to-br from-indigo-600 to-blue-500 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-white shadow-2xl shadow-indigo-200 overflow-hidden group"
+            >
+              {/* Background Glow */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               
-              <motion.label
-                whileHover={{ y: -5, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="group flex flex-col items-center justify-center p-8 sm:p-10 bg-white border border-slate-100 rounded-[2.5rem] sm:rounded-[3rem] transition-all duration-300 shadow-premium hover:shadow-premium-hover cursor-pointer ambient-glow"
+              <div className="absolute top-6 right-6 flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/20">
+                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+                <span className="text-[8px] font-black uppercase tracking-widest">AI POWERED</span>
+              </div>
+
+              <div className="w-20 h-20 bg-white/10 backdrop-blur-xl rounded-3xl flex items-center justify-center mb-6 border border-white/20 shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                <Zap className="w-10 h-10 fill-white" />
+              </div>
+
+              <h2 className="text-3xl font-black uppercase tracking-[0.1em] mb-2">OCR LIVE PRO</h2>
+              <p className="text-[10px] font-medium text-white/70 uppercase tracking-widest">Scansione intelligente in tempo reale</p>
+            </motion.button>
+
+            {/* Secondary Buttons */}
+            <div className="grid grid-cols-2 gap-4">
+              <motion.button
+                whileHover={{ y: -5 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setIsSmartMode(false);
+                  startCamera();
+                }}
+                className="flex flex-col items-center justify-center p-6 bg-white border border-slate-100 rounded-[2rem] shadow-premium hover:shadow-premium-hover transition-all group"
               >
-                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-emerald-50 text-emerald-600 rounded-2xl sm:rounded-3xl flex items-center justify-center mb-4 sm:mb-5 group-hover:scale-110 transition-all duration-300 shadow-sm border border-emerald-100/50 group-hover:bg-emerald-100/50">
-                  <Upload className="w-7 h-7 sm:w-8 sm:h-8" />
+                <div className="w-14 h-14 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-colors">
+                  <Camera className="w-7 h-7" />
                 </div>
-                <span className="font-black text-slate-700 text-[10px] sm:text-xs uppercase tracking-[0.2em]">Upload Image</span>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  onChange={handleFileUpload}
-                />
-              </motion.label>
+                <span className="font-black text-slate-700 text-[10px] uppercase tracking-widest">Label Photo</span>
+              </motion.button>
 
               <motion.button
-                whileHover={{ y: -5, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={onManualEntry}
-                className="group flex flex-col items-center justify-center p-8 sm:p-10 bg-white border border-slate-100 rounded-[2.5rem] sm:rounded-[3rem] transition-all duration-300 shadow-premium hover:shadow-premium-hover ambient-glow"
+                whileHover={{ y: -5 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsBarcodeMode(true)}
+                className="flex flex-col items-center justify-center p-6 bg-white border border-slate-100 rounded-[2rem] shadow-premium hover:shadow-premium-hover transition-all group"
               >
-                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-slate-50 text-slate-500 rounded-2xl sm:rounded-3xl flex items-center justify-center mb-4 sm:mb-5 group-hover:scale-110 transition-all duration-300 shadow-sm border border-slate-200/50 group-hover:bg-slate-100/50">
-                  <PenLine className="w-7 h-7 sm:w-8 sm:h-8" />
+                <div className="w-14 h-14 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                  <Barcode className="w-7 h-7" />
                 </div>
-                <span className="font-black text-slate-700 text-[10px] sm:text-xs uppercase tracking-[0.2em]">Manual Input</span>
+                <span className="font-black text-slate-700 text-[10px] uppercase tracking-widest">Barcode Scan</span>
               </motion.button>
             </div>
 
-            <div className="flex flex-col items-center gap-4 pt-6">
-              <div className="flex items-center gap-3">
-                <div className="h-px w-12 bg-slate-200" />
-                <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.4em]">Enterprise Grade</span>
-                <div className="h-px w-12 bg-slate-200" />
-              </div>
-              <p className="text-[10px] text-slate-400 font-medium tracking-wide">v2.7.0 Build 104 &bull; Inventory OCR System</p>
+            {/* Tertiary Options */}
+            <div className="flex gap-3 mt-2">
+              <motion.label
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex-1 flex items-center justify-center gap-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl cursor-pointer hover:bg-slate-100 transition-colors"
+              >
+                <Upload className="w-4 h-4 text-slate-500" />
+                <span className="font-bold text-slate-600 text-[9px] uppercase tracking-widest">Carica</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+              </motion.label>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onManualEntry}
+                className="flex-1 flex items-center justify-center gap-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl hover:bg-slate-100 transition-colors"
+              >
+                <PenLine className="w-4 h-4 text-slate-500" />
+                <span className="font-bold text-slate-600 text-[9px] uppercase tracking-widest">Manuale</span>
+              </motion.button>
             </div>
           </motion.div>
         ) : (
@@ -511,28 +481,35 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
               className="w-full h-full object-cover"
             />
             
-            <div className="absolute inset-0 pointer-events-none border-[20px] sm:border-[40px] border-black/40">
-              <div className="w-full h-full border-2 border-white/40 rounded-2xl sm:rounded-3xl relative">
+            <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+              <div className="w-full max-w-[80%] aspect-square relative">
+                {/* Top Label */}
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-black/60 backdrop-blur-md rounded-full border border-white/20">
+                  <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Allinea Etichetta Qui</span>
+                </div>
+
+                {/* Scanning Frame Corners */}
+                <div className="absolute top-0 left-0 w-12 h-12 border-t-[6px] border-l-[6px] border-indigo-500 rounded-tl-3xl"></div>
+                <div className="absolute top-0 right-0 w-12 h-12 border-t-[6px] border-r-[6px] border-indigo-500 rounded-tr-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-12 h-12 border-b-[6px] border-l-[6px] border-indigo-500 rounded-bl-3xl"></div>
+                <div className="absolute bottom-0 right-0 w-12 h-12 border-b-[6px] border-r-[6px] border-indigo-500 rounded-br-3xl"></div>
+
+                {/* Scanning Line */}
                 <motion.div 
-                  animate={{ opacity: [0.3, 0.6, 0.3] }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                  className="absolute top-0 left-0 w-8 h-8 sm:w-12 sm:h-12 border-t-4 border-l-4 border-white -mt-1 -ml-1 rounded-tl-lg sm:rounded-tl-xl"
+                  animate={{ top: ['10%', '90%', '10%'] }}
+                  transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                  className="absolute left-4 right-4 h-0.5 bg-indigo-400/50 shadow-[0_0_15px_rgba(99,102,241,0.8)] z-10"
                 ></motion.div>
-                <motion.div 
-                  animate={{ opacity: [0.3, 0.6, 0.3] }}
-                  transition={{ repeat: Infinity, duration: 2, delay: 0.5 }}
-                  className="absolute top-0 right-0 w-8 h-8 sm:w-12 sm:h-12 border-t-4 border-r-4 border-white -mt-1 -mr-1 rounded-tr-lg sm:rounded-tr-xl"
-                ></motion.div>
-                <motion.div 
-                  animate={{ opacity: [0.3, 0.6, 0.3] }}
-                  transition={{ repeat: Infinity, duration: 2, delay: 1 }}
-                  className="absolute bottom-0 left-0 w-8 h-8 sm:w-12 sm:h-12 border-b-4 border-l-4 border-white -mb-1 -ml-1 rounded-bl-lg sm:rounded-bl-xl"
-                ></motion.div>
-                <motion.div 
-                  animate={{ opacity: [0.3, 0.6, 0.3] }}
-                  transition={{ repeat: Infinity, duration: 2, delay: 1.5 }}
-                  className="absolute bottom-0 right-0 w-8 h-8 sm:w-12 sm:h-12 border-b-4 border-r-4 border-white -mb-1 -mr-1 rounded-br-lg sm:rounded-br-xl"
-                ></motion.div>
+
+                {/* Status Indicator */}
+                <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
+                  <div className="flex items-center gap-2 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
+                    <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse"></div>
+                    <Bot className="w-3 h-3 text-indigo-300" />
+                    <span className="text-[8px] font-black text-indigo-200 uppercase tracking-widest">Analisi...</span>
+                  </div>
+                  <span className="text-[7px] font-black text-white/40 uppercase tracking-[0.3em]">Auto-Verify Pro</span>
+                </div>
               </div>
             </div>
 
@@ -566,10 +543,10 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
                 disabled={!isVideoPlaying}
                 className={`group relative w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center ${!isVideoPlaying ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full border-4 border-slate-200 flex items-center justify-center shadow-2xl transition-transform">
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-full border border-slate-100 flex items-center justify-center">
-                    <div className="w-10 h-10 sm:w-14 sm:h-14 bg-indigo-600/5 rounded-full"></div>
+                <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping"></div>
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full border-4 border-indigo-100 flex items-center justify-center shadow-2xl transition-transform group-hover:scale-110">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-indigo-600 rounded-full flex items-center justify-center shadow-inner">
+                    <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-white fill-white" />
                   </div>
                 </div>
               </motion.button>

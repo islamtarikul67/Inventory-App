@@ -1,6 +1,6 @@
 {
-  "name": "Smart Warehouse Scan",
-  "description": "Intelligent warehouse scanning system with barcode detection and OCR data extraction.",
+  "name": "Inventory OCR",
+  "description": "Gestione inventario tramite scansione OCR di etichette con Supabase e Analisi Smart AI",
   "requestFramePermissions": [
     "camera"
   ]
