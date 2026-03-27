@@ -1,13 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { X, Loader2, Check, Barcode, Hash } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
-import { ExtractedData } from '../services/ocrService';
-
 interface BarcodeScannerProps {
-  onScan: (data: ExtractedData) => void;
+  onScan: (data: { codice: string, lotto: string }) => void;
   onClose: () => void;
 }
 
@@ -240,18 +238,12 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
   };
 
   const handleComplete = () => {
-    const result: ExtractedData = {
-      codice,
-      lotto,
-      descrizione: '',
-      quantita: 1
-    };
     if (scannerRef.current && scannerRef.current.isScanning) {
       scannerRef.current.stop().then(() => {
-        onScan(result);
+        onScan({ codice, lotto });
       }).catch(console.warn);
     } else {
-      onScan(result);
+      onScan({ codice, lotto });
     }
   };
 

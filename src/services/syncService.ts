@@ -1,23 +1,43 @@
-import { InventoryItem } from '../types';
+export interface PendingItem {
+  id: string;
+  codice: string;
+  descrizione: string;
+  lotto: string;
+  quantita: number;
+  sessione_id: string | null;
+  note?: string | null;
+  timestamp: number;
+}
 
-const QUEUE_KEY = 'inventory_sync_queue';
+const QUEUE_KEY = 'inventory_offline_queue';
 
 export const syncService = {
-  getQueue(): InventoryItem[] {
-    const saved = localStorage.getItem(QUEUE_KEY);
-    return saved ? JSON.parse(saved) : [];
+  getQueue(): PendingItem[] {
+    try {
+      const queue = localStorage.getItem(QUEUE_KEY);
+      return queue ? JSON.parse(queue) : [];
+    } catch (e) {
+      console.error('Error reading offline queue', e);
+      return [];
+    }
   },
 
-  addToQueue(item: InventoryItem) {
+  addToQueue(item: Omit<PendingItem, 'id' | 'timestamp'>) {
     const queue = this.getQueue();
-    queue.push(item);
+    const newItem: PendingItem = {
+      ...item,
+      id: crypto.randomUUID(),
+      timestamp: Date.now()
+    };
+    queue.push(newItem);
     localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    return newItem;
   },
 
   removeFromQueue(id: string) {
     const queue = this.getQueue();
-    const filtered = queue.filter(item => item.id !== id);
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(filtered));
+    const newQueue = queue.filter(item => item.id !== id);
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(newQueue));
   },
 
   clearQueue() {

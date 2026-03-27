@@ -10,8 +10,8 @@ import { extractDataFromImage, ExtractedData } from './services/ocrService';
 import { supabase } from './supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { InventorySession } from './types';
-import { PackageSearch, Loader2, List, Camera, LogOut, WifiOff, AlertTriangle, User } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import { PackageSearch, Loader2, List, Camera, WifiOff, AlertTriangle } from 'lucide-react';
+import { Toaster } from 'react-hot-toast';
 import { syncService } from './services/syncService';
 import { motion, AnimatePresence } from 'motion/react';
 import { SpeedInsights } from "@vercel/speed-insights/react";
@@ -29,7 +29,7 @@ export default function App() {
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
   const [error, setError] = useState<string>('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [, setIsSyncing] = useState(false);
   const isSyncingRef = React.useRef(false);
   const [currentSession, setCurrentSession] = useState<InventorySession | null>(() => {
     const saved = localStorage.getItem('last_inventory_session');
