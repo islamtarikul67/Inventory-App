@@ -4,7 +4,7 @@ import { X, User, Mail, Calendar, Shield, LogOut, Package, Camera, Loader2, Chec
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/supabaseClient';
 import toast from 'react-hot-toast';
-import ProfileImage from './ProfileImage';
+import ProfileImage from '@/components/ProfileImage';
 
 interface ProfileModalProps {
   isOpen: boolean;

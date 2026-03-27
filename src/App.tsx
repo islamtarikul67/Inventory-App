@@ -12,7 +12,7 @@ import { Session } from '@supabase/supabase-js';
 import { InventorySession } from '@/types';
 import { PackageSearch, Loader2, List, Camera, LogOut, WifiOff, AlertTriangle, User } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
-import { syncService } from './services/syncService';
+import { syncService } from '@/services/syncService';
 import { motion, AnimatePresence } from 'motion/react';
 import { SpeedInsights } from "@vercel/speed-insights/react";
 

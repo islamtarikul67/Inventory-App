@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Camera, Upload, X, PenLine, Barcode, RefreshCw, RotateCw, Zap } from 'lucide-react';
-import BarcodeScanner from './BarcodeScanner';
-import LiveOCRScanner from './LiveOCRScanner';
+import BarcodeScanner from '@/components/BarcodeScanner';
+import LiveOCRScanner from '@/components/LiveOCRScanner';
 import { motion, AnimatePresence } from 'motion/react';
 import { ExtractedData } from '@/services/ocrService';
 
