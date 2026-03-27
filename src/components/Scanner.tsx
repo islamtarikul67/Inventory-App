@@ -3,7 +3,7 @@ import { Camera, Upload, X, PenLine, Barcode, RefreshCw, RotateCw, Zap } from 'l
 import BarcodeScanner from './BarcodeScanner';
 import LiveOCRScanner from './LiveOCRScanner';
 import { motion, AnimatePresence } from 'motion/react';
-import { ExtractedData } from '../services/ocrService';
+import { ExtractedData } from '@/services/ocrService';
 
 interface ScannerProps {
   onCapture: (base64: string, mimeType: string) => void;

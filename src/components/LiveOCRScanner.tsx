@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { X, RefreshCw, RotateCw, Zap, Loader2, CheckCircle2, Scan, Barcode } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { extractLiveOCRPro, ExtractedData } from '../services/ocrService';
+import { extractLiveOCRPro, ExtractedData } from '@/services/ocrService';
 import jsQR from 'jsqr';
 
 interface LiveOCRScannerProps {

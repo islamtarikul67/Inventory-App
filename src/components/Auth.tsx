@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '@/supabaseClient';
 import { Loader2, Mail, Lock, LogIn, UserPlus, AlertCircle, PackageSearch, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
