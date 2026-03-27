@@ -1,7 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Camera, Upload, X, PenLine, Barcode, RefreshCw, RotateCw } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
-import LiveOCR from './LiveOCR';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ScannerProps {
@@ -16,7 +15,6 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
   const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState<string>('');
   const [isBarcodeMode, setIsBarcodeMode] = useState(false);
-  const [isLiveOCRMode, setIsLiveOCRMode] = useState(false);
 
   // Keep streamRef in sync with stream state
   useEffect(() => {
@@ -296,15 +294,6 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
               onClose={() => setIsBarcodeMode(false)} 
             />
           </motion.div>
-        ) : isLiveOCRMode ? (
-          <LiveOCR 
-            onDataExtracted={(data) => {
-              // Handle extracted data
-              setIsLiveOCRMode(false);
-              onBarcodeScan(data); // Reusing onBarcodeScan for now, or create a new prop
-            }}
-            onClose={() => setIsLiveOCRMode(false)}
-          />
         ) : !stream ? (
           <motion.div 
             key="selection-mode"
@@ -322,18 +311,6 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
                 <Camera className="w-6 h-6 sm:w-8 sm:h-8" />
               </div>
               <span className="font-black text-slate-700 text-[9px] sm:text-xs uppercase tracking-[0.15em] sm:tracking-[0.2em]">OCR Etichetta</span>
-            </motion.button>
-            
-            <motion.button
-              whileHover={{ y: -5 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setIsLiveOCRMode(true)}
-              className="group flex flex-col items-center justify-center p-5 sm:p-8 bg-white border border-slate-200 rounded-[2rem] sm:rounded-[2.5rem] hover:border-purple-300 hover:bg-purple-50/30 transition-all duration-300 shadow-premium hover:shadow-premium-hover"
-            >
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-purple-100 text-purple-600 rounded-xl sm:rounded-2xl flex items-center justify-center mb-3 sm:mb-5 group-hover:scale-110 transition-transform shadow-inner">
-                <Camera className="w-6 h-6 sm:w-8 sm:h-8" />
-              </div>
-              <span className="font-black text-slate-700 text-[9px] sm:text-xs uppercase tracking-[0.15em] sm:tracking-[0.2em]">Live OCR Pro</span>
             </motion.button>
             
             <motion.button
