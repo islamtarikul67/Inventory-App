@@ -7,7 +7,7 @@ import SessionSelector from '@/components/SessionSelector';
 import ProfileModal from '@/components/ProfileModal';
 import ProfileImage from '@/components/ProfileImage';
 import { extractDataFromImage, ExtractedData } from '@/services/ocrService';
-import { supabase } from '@/supabaseClient';
+import { supabase } from '@/supabaseClient.ts';
 import { Session } from '@supabase/supabase-js';
 import { InventorySession } from '@/types';
 import { PackageSearch, Loader2, List, Camera, LogOut, WifiOff, AlertTriangle, User } from 'lucide-react';

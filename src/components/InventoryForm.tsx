@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase, supabaseUrl, supabaseAnonKey } from '@/supabaseClient';
+import { supabase, supabaseUrl, supabaseAnonKey } from '@/supabaseClient.ts';
 import { ExtractedData } from '@/services/ocrService';
 import { CheckCircle2, AlertCircle, Loader2, Save, RotateCcw, WifiOff, CloudOff, Database, ArrowLeft, X } from 'lucide-react';
 import toast from 'react-hot-toast';
