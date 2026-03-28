@@ -34,52 +34,66 @@ export async function extractDataFromImage(base64Image: string, mimeType: string
     // Inizializzazione lazy per evitare problemi di caricamento modulo
     const genAI = new GoogleGenAI({ apiKey });
 
-    const response = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        {
-          inlineData: {
-            data: base64Data,
-            mimeType: mimeType,
-          }
-        },
-        "Sei un esperto di OCR industriale di Google AI.\n" +
-        "Analizza questa etichetta industriale PANOTEC ed estrai i dati in formato JSON.\n" +
-        "STRUTTURA ETICHETTA:\n" +
-        "- 'codice': dopo 'Codice :', es. 842-OCSCN0002_01.\n" +
-        "- 'descrizione': blocco dopo 'Descrizione :'.\n" +
-        "- 'lotto': numero nel barcode in alto a destra (es. 250305).\n" +
-        "- 'quantita': numero prima di 'PZ' (es. 500).\n" +
-        "- 'confidence': punteggio 0-100 per ogni campo.\n\n" +
-        "REGOLE:\n" +
-        "- Estrai ESATTAMENTE quello che vedi.\n" +
-        "- Se un dato è incerto, usa il ragionamento logico.\n" +
-        "- Restituisci SOLO il JSON."
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            codice: { type: Type.STRING },
-            descrizione: { type: Type.STRING },
-            lotto: { type: Type.STRING },
-            quantita: { type: Type.NUMBER },
-            confidence: {
-              type: Type.OBJECT,
-              properties: {
-                codice: { type: Type.NUMBER },
-                descrizione: { type: Type.NUMBER },
-                lotto: { type: Type.NUMBER },
-                quantita: { type: Type.NUMBER }
+    // Timeout di 30 secondi per evitare blocchi infiniti
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Timeout: L'IA di Google sta impiegando troppo tempo. Riprova.")), 30000)
+    );
+
+    const response = await Promise.race([
+      genAI.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [
+          {
+            parts: [
+              {
+                inlineData: {
+                  data: base64Data,
+                  mimeType: mimeType,
+                }
               },
-              required: ["codice", "descrizione", "lotto", "quantita"]
-            }
-          },
-          required: ["codice", "descrizione", "lotto", "quantita", "confidence"]
+              {
+                text: "Sei un esperto di OCR industriale di Google AI.\n" +
+                "Analizza questa etichetta industriale PANOTEC ed estrai i dati in formato JSON.\n" +
+                "STRUTTURA ETICHETTA:\n" +
+                "- 'codice': dopo 'Codice :', es. 842-OCSCN0002_01.\n" +
+                "- 'descrizione': blocco dopo 'Descrizione :'.\n" +
+                "- 'lotto': numero nel barcode in alto a destra (es. 250305).\n" +
+                "- 'quantita': numero prima di 'PZ' (es. 500).\n" +
+                "- 'confidence': punteggio 0-100 per ogni campo.\n\n" +
+                "REGOLE:\n" +
+                "- Estrai ESATTAMENTE quello che vedi.\n" +
+                "- Se un dato è incerto, usa il ragionamento logico.\n" +
+                "- Restituisci SOLO il JSON."
+              }
+            ]
+          }
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              codice: { type: Type.STRING },
+              descrizione: { type: Type.STRING },
+              lotto: { type: Type.STRING },
+              quantita: { type: Type.NUMBER },
+              confidence: {
+                type: Type.OBJECT,
+                properties: {
+                  codice: { type: Type.NUMBER },
+                  descrizione: { type: Type.NUMBER },
+                  lotto: { type: Type.NUMBER },
+                  quantita: { type: Type.NUMBER }
+                },
+                required: ["codice", "descrizione", "lotto", "quantita"]
+              }
+            },
+            required: ["codice", "descrizione", "lotto", "quantita", "confidence"]
+          }
         }
-      }
-    });
+      }),
+      timeoutPromise
+    ]) as any;
 
     const text = response.text;
     console.log("Gemini Raw Response:", text);
