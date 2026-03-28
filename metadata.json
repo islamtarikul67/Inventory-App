@@ -1,5 +1,7 @@
 {
-  "name": "Qwen 3.5 Chat",
-  "description": "Chat interface for Qwen 3.5 122B powered by NVIDIA API",
-  "requestFramePermissions": []
+  "name": "Inventory OCR",
+  "description": "Gestione inventario tramite scansione OCR di etichette con Supabase",
+  "requestFramePermissions": [
+    "camera"
+  ]
 }

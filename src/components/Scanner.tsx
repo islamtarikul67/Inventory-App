@@ -31,7 +31,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
         const videoDevices = allDevices.filter(device => device.kind === 'videoinput');
         setDevices(videoDevices);
       } catch (err) {
-        console.warn('Avviso enumerazione dispositivi:', err);
+        console.error('Errore enumerazione dispositivi:', err);
       }
     };
     getDevices();
@@ -101,7 +101,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
         video: targetDeviceId 
           ? { deviceId: { exact: targetDeviceId } } 
           : { 
-              facingMode: { ideal: 'environment' },
+              facingMode: 'environment',
             }
       };
 
@@ -121,13 +121,11 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
       setStream(mediaStream);
       setCurrentDeviceId(targetDeviceId || null);
     } catch (err: any) {
-      // Log as warning instead of error to avoid triggering automatic error reports
-      // when the user simply doesn't have a camera
-      console.warn('Avviso fotocamera:', err);
+      console.error('Errore fotocamera:', err);
       const errorMessage = err?.message || String(err) || "";
       const lowerError = errorMessage.toLowerCase();
       
-      if (err?.name === 'NotFoundError' || err?.name === 'OverconstrainedError' || lowerError.includes('device not found') || lowerError.includes('notfounderror') || lowerError.includes('overconstrainederror')) {
+      if (err?.name === 'NotFoundError' || lowerError.includes('requested device not found') || lowerError.includes('notfounderror')) {
         setError('Nessuna fotocamera trovata. Assicurati che il dispositivo abbia una fotocamera funzionante.');
       } else if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError' || lowerError.includes('not allowed') || lowerError.includes('permission denied')) {
         setError('Accesso negato. Se stai usando l\'anteprima, prova ad aprire l\'app in una NUOVA SCHEDA (pulsante in alto a destra) per concedere i permessi correttamente.');
@@ -162,7 +160,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
         try {
           track.stop();
         } catch (e) {
-          console.warn("Warning stopping track", e);
+          console.error("Error stopping track", e);
         }
       });
       streamRef.current = null;
@@ -258,7 +256,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
         await videoRef.current.play();
         setIsVideoPlaying(true);
       } catch (err) {
-        console.warn('Forced play failed:', err);
+        console.error('Forced play failed:', err);
       }
     }
   };
@@ -442,7 +440,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
                   el.play().then(() => {
                     setIsVideoPlaying(true);
                   }).catch(err => {
-                    console.warn('Auto-play failed in ref callback:', err);
+                    console.error('Auto-play failed in ref callback:', err);
                     // We don't set isVideoPlaying to true here so the overlay can show
                   });
                 }
