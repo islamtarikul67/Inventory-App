@@ -1,7 +1,5 @@
 {
-  "name": "Inventory OCR",
-  "description": "Gestione inventario tramite scansione OCR di etichette con Supabase",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "name": "Inventory  App",
+  "description": "Web App Inventory OCR",
+  "requestFramePermissions": []
 }

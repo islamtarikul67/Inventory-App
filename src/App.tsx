@@ -188,7 +188,7 @@ export default function App() {
     } catch (err: any) {
       console.error("Errore OCR:", err);
       const errorMessage = err?.message || "Errore sconosciuto durante l'analisi dell'immagine.";
-      setError(`Impossibile leggere l'etichetta. ${errorMessage.includes('Nessun dato') ? 'Assicurati che l\'immagine contenga un\'etichetta chiara.' : 'Riprova con un\'immagine più nitida o ben illuminata.'}`);
+      setError(`Impossibile leggere l'etichetta. ${errorMessage.includes('Nessun dato') ? 'Assicurati che l\'immagine contenga un\'etichetta chiara.' : 'Riprova con un\'immagine più nitida o ben illuminata. Suggerimento: inquadra bene l\'etichetta ed evita riflessi.'}`);
       setAppState('scanning');
     }
   };
@@ -401,9 +401,15 @@ export default function App() {
                     <motion.div 
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
-                      className="mb-8 p-4 bg-red-50 text-red-700 rounded-2xl text-sm font-medium border border-red-100 shadow-sm text-center"
+                      className="mb-8 p-6 bg-red-50 text-red-700 rounded-3xl text-sm font-medium border border-red-100 shadow-xl text-center"
                     >
-                      {error}
+                      <div className="mb-4">{error}</div>
+                      <button 
+                        onClick={handleReset}
+                        className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-red-700 transition-colors"
+                      >
+                        Riprova
+                      </button>
                     </motion.div>
                   )}
                   

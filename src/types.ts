@@ -17,3 +17,11 @@ export interface InventoryItem {
   creato_at: string;
   creato_da: string;
 }
+
+export interface ExtractedData {
+  codice: string;
+  descrizione: string;
+  lotto: string;
+  quantita?: number;
+  note?: string;
+}

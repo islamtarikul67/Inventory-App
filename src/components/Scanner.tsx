@@ -173,8 +173,8 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
     if (videoRef.current && stream) {
       const canvas = document.createElement('canvas');
       
-      const MAX_WIDTH = 800;
-      const MAX_HEIGHT = 800;
+      const MAX_WIDTH = 1200;
+      const MAX_HEIGHT = 1200;
       let width = videoRef.current.videoWidth;
       let height = videoRef.current.videoHeight;
 
@@ -216,8 +216,8 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
       img.onload = () => {
         URL.revokeObjectURL(objectUrl);
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800;
-        const MAX_HEIGHT = 800;
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
         let width = img.width;
         let height = img.height;
 
