@@ -187,8 +187,14 @@ export default function App() {
       setAppState('editing');
     } catch (err: any) {
       console.error("Errore OCR:", err);
-      const errorMessage = err?.message || "Errore sconosciuto durante l'analisi dell'immagine.";
-      setError(`Impossibile leggere l'etichetta. ${errorMessage.includes('Nessun dato') ? 'Assicurati che l\'immagine contenga un\'etichetta chiara.' : 'Riprova con un\'immagine più nitida o ben illuminata. Suggerimento: inquadra bene l\'etichetta ed evita riflessi.'}`);
+      const errorMessage = err?.message || "Errore sconosciuto";
+      
+      if (errorMessage.includes("API key not valid")) {
+        setError("Errore: La chiave API di Google non è valida o è scaduta. Vai nelle impostazioni (Settings) e inserisci una chiave GEMINI_API_KEY valida.");
+      } else {
+        setError(`Errore Analisi: ${errorMessage}`);
+      }
+      
       setAppState('scanning');
     }
   };
@@ -425,16 +431,20 @@ export default function App() {
               )}
 
               {appState === 'processing' && (
-                <div className="flex flex-col items-center justify-center py-32">
+                <div className="flex flex-col items-center justify-center py-24 sm:py-32">
                   <div className="relative flex items-center justify-center mb-10">
                     <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-75"></div>
-                    <div className="relative bg-white p-8 rounded-3xl shadow-2xl border border-indigo-50">
-                      <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
+                    <div className="relative bg-white p-8 rounded-[2.5rem] shadow-2xl border border-indigo-50">
+                      <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                     </div>
                   </div>
-                  <h3 className="text-2xl font-extrabold text-slate-900 mb-3 tracking-tight">Analisi OCR in corso...</h3>
-                  <p className="text-slate-500 text-center max-w-xs font-medium">
-                    L'intelligenza artificiale sta leggendo l'etichetta per estrarre codice e lotto.
+                  <h3 className="text-2xl font-black text-slate-900 mb-3 uppercase tracking-tight">Analisi Google AI</h3>
+                  <p className="text-slate-500 text-center max-w-xs font-medium leading-relaxed">
+                    Google Gemini sta leggendo l'etichetta. <br/>
+                    <span className="text-[10px] uppercase tracking-widest text-indigo-500 mt-3 inline-flex items-center gap-1.5 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                      <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse"></span>
+                      Powered by Google Gemini
+                    </span>
                   </p>
                 </div>
               )}

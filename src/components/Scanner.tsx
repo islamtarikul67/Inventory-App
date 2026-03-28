@@ -173,8 +173,8 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
     if (videoRef.current && stream) {
       const canvas = document.createElement('canvas');
       
-      const MAX_WIDTH = 1200;
-      const MAX_HEIGHT = 1200;
+      const MAX_WIDTH = 1600;
+      const MAX_HEIGHT = 1600;
       let width = videoRef.current.videoWidth;
       let height = videoRef.current.videoHeight;
 
@@ -193,10 +193,9 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      if (ctx) {
-        // Applica un filtro di contrasto e luminosità per migliorare l'OCR
-        ctx.filter = 'contrast(1.3) brightness(1.1)';
-        ctx.drawImage(videoRef.current, 0, 0, width, height);
+        if (ctx) {
+          // Rimuoviamo i filtri pesanti che possono disturbare l'IA se l'immagine è già buona
+          ctx.drawImage(videoRef.current, 0, 0, width, height);
         // Ripristina il filtro
         ctx.filter = 'none';
         
@@ -216,8 +215,8 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
       img.onload = () => {
         URL.revokeObjectURL(objectUrl);
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1200;
-        const MAX_HEIGHT = 1200;
+        const MAX_WIDTH = 1600;
+        const MAX_HEIGHT = 1600;
         let width = img.width;
         let height = img.height;
 
@@ -237,8 +236,7 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          // Applica un filtro di contrasto e luminosità per migliorare l'OCR
-          ctx.filter = 'contrast(1.3) brightness(1.1)';
+          // Rimuoviamo i filtri pesanti
           ctx.drawImage(img, 0, 0, width, height);
           ctx.filter = 'none';
           
@@ -351,6 +349,13 @@ export default function Scanner({ onCapture, onManualEntry, onBarcodeScan }: Sca
               </div>
               <span className="font-black text-slate-700 text-[9px] sm:text-xs uppercase tracking-[0.15em] sm:tracking-[0.2em]">Manuale</span>
             </motion.button>
+            
+            <div className="col-span-2 flex justify-center mt-4">
+              <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full border border-slate-200">
+                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Powered by Google Gemini AI</span>
+              </div>
+            </div>
           </motion.div>
         ) : (
           <motion.div 

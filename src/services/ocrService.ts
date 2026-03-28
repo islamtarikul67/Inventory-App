@@ -26,8 +26,16 @@ export async function extractDataFromImage(base64Image: string, mimeType: string
     // Rimuovi il prefisso data:image/...;base64, se presente
     const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_2;
+    if (!apiKey) {
+      throw new Error("Chiave API Gemini non configurata. Inserisci GEMINI_API_KEY o GEMINI_API_KEY_2 nelle impostazioni.");
+    }
+
+    // Inizializzazione lazy per evitare problemi di caricamento modulo
+    const genAI = new GoogleGenAI({ apiKey });
+
+    const response = await genAI.models.generateContent({
+      model: "gemini-3-flash-preview",
       contents: [
         {
           inlineData: {
@@ -35,13 +43,18 @@ export async function extractDataFromImage(base64Image: string, mimeType: string
             mimeType: mimeType,
           }
         },
-        "Analizza attentamente questa etichetta industriale e estrai i seguenti dati in formato JSON:\n" +
-        "- codice: Cerca il codice identificativo principale (Sku, Part Number, Barcode text).\n" +
-        "- descrizione: Estrai l'INTERA descrizione testuale, inclusi codici di revisione (REV), norme (STD) e specifiche tecniche. Non troncare il testo.\n" +
-        "- lotto: Cerca il numero di lotto o batch. Spesso è un numero di 6 cifre (es. 250173), ma può avere altri formati. Estrai quello che sembra più probabile essere il lotto.\n" +
-        "- quantita: Estrai solo il valore numerico (es. da '500,00 PZ' estrai 500).\n\n" +
-        "Sii estremamente preciso. Se un campo è assente o illeggibile, usa una stringa vuota (o 1 per quantità). Non inventare dati se non sei sicuro, ma cerca di estrarre tutto il possibile.\n" +
-        "IMPORTANTE: Restituisci SOLO il JSON puro, senza blocchi di codice markdown."
+        "Sei un esperto di OCR industriale di Google AI.\n" +
+        "Analizza questa etichetta industriale PANOTEC ed estrai i dati in formato JSON.\n" +
+        "STRUTTURA ETICHETTA:\n" +
+        "- 'codice': dopo 'Codice :', es. 842-OCSCN0002_01.\n" +
+        "- 'descrizione': blocco dopo 'Descrizione :'.\n" +
+        "- 'lotto': numero nel barcode in alto a destra (es. 250305).\n" +
+        "- 'quantita': numero prima di 'PZ' (es. 500).\n" +
+        "- 'confidence': punteggio 0-100 per ogni campo.\n\n" +
+        "REGOLE:\n" +
+        "- Estrai ESATTAMENTE quello che vedi.\n" +
+        "- Se un dato è incerto, usa il ragionamento logico.\n" +
+        "- Restituisci SOLO il JSON."
       ],
       config: {
         responseMimeType: "application/json",
@@ -68,29 +81,29 @@ export async function extractDataFromImage(base64Image: string, mimeType: string
       }
     });
 
-    console.log("Risposta Gemini:", response);
-
     const text = response.text;
+    console.log("Gemini Raw Response:", text);
+
     if (!text) {
-      throw new Error("Nessun dato estratto dall'immagine.");
+      throw new Error("L'IA non ha restituito dati. Riprova con una foto più chiara.");
     }
 
     try {
-      // Pulisce il testo da eventuali blocchi markdown se presenti nonostante il prompt
-      const cleanedText = text.replace(/```json|```/g, '').trim();
-      const data = JSON.parse(cleanedText);
-      
-      // Validazione minima dei dati
+      // Estrazione robusta del JSON (cerca tra le prime '{' e l'ultima '}')
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : text;
+      const data = JSON.parse(jsonStr);
+
       return {
-        codice: data.codice || '',
-        descrizione: data.descrizione || '',
-        lotto: data.lotto || '',
+        codice: String(data.codice || '').trim(),
+        descrizione: String(data.descrizione || '').trim(),
+        lotto: String(data.lotto || '').trim(),
         quantita: Number(data.quantita) || 1,
-        confidence: data.confidence || { codice: 0, descrizione: 0, lotto: 0, quantita: 0 }
+        confidence: data.confidence || { codice: 50, descrizione: 50, lotto: 50, quantita: 50 }
       };
-    } catch (parseError) {
-      console.error("Errore parsing JSON Gemini:", text);
-      throw new Error("Errore nell'elaborazione dei dati estratti.");
+    } catch (e) {
+      console.error("Errore Parsing JSON:", e, text);
+      throw new Error("Errore nell'interpretazione dei dati. Riprova.");
     }
   } catch (error) {
     console.error("Errore durante l'OCR con Gemini:", error);
